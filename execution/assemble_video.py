@@ -8,8 +8,8 @@ Usage:
   python execution/assemble_video.py \
     --video ".tmp/raw/nebula_clip.mp4" \
     --audio ".tmp/raw/ambient_track.mp3" \
-    --duration 7200 \
-    --title "Purple Nebula Drift — 2 Hours Deep Space Ambient"
+    --duration 3600 \
+    --title "Purple Nebula Drift — 1 Hour Deep Space Ambient"
 
 Output: .tmp/final_<slug>.mp4
 
@@ -226,8 +226,8 @@ def main():
     parser = argparse.ArgumentParser(description="Assemble a Nebula Drift YouTube video")
     parser.add_argument("--video", required=True, help="Path to raw video clip")
     parser.add_argument("--audio", required=True, help="Path to music track")
-    parser.add_argument("--duration", type=int, default=7200,
-                        help="Target duration in seconds (default: 7200 = 2 hours)")
+    parser.add_argument("--duration", type=int, default=3600,
+                        help="Target duration in seconds (default: 3600 = 1 hour)")
     parser.add_argument("--title", default="",
                         help="Video title (used for filename slug)")
     parser.add_argument("--output", default=None,

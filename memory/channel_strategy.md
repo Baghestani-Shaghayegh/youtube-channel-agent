@@ -36,6 +36,13 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - **Created:** May 2026
 - **Status:** Just launched — no videos yet
 
+## Upload Schedule
+- **Frequency:** 1 video per week (4/month)
+- **Current video duration:** 1 hour (3600s) — starting point
+- **Month 3+ duration:** push to 4–8 hours for sleep/study search traffic
+- **Assembly script default:** `--duration 3600`
+- **Title formula:** "[Visual scene] — Deep Space Ambient for [use case]"
+
 ## Research Data Location
 - Google Sheet (master): https://docs.google.com/spreadsheets/d/1OWJ2Z0BXNby4mxcxZojVQ0sKFshmxg5jhGimCwQWXZo
 - Local CSV: .tmp/channel_research_master.csv

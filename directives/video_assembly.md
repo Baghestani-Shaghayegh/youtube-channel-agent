@@ -14,7 +14,7 @@ Automate the production of upload-ready YouTube videos for Nebula Drift by combi
   - Or user drops them in `.tmp/raw/`
 
 ### Parameters
-- **Target duration**: default 7200 seconds (2 hours). Can be 3600 (1hr) or 10800 (3hr).
+- **Target duration**: default 3600 seconds (1 hour). Can be 7200 (2hr) or 10800 (3hr). Month 3+ push to 4–8hr per channel strategy.
 - **Video title**: used for output filename slug and YouTube metadata
 
 ## Nova's Decision Logic (which file to use first)
@@ -35,8 +35,8 @@ Nova should always confirm the selection with the user before running the script
 python execution/assemble_video.py \
   --video ".tmp/raw/nebula_purple_v2.mp4" \
   --audio ".tmp/raw/cosmic_drift_track1.mp3" \
-  --duration 7200 \
-  --title "Purple Nebula Drift — 2 Hours Deep Space Ambient"
+  --duration 3600 \
+  --title "Purple Nebula Drift — 1 Hour Deep Space Ambient"
 ```
 
 Script output: `.tmp/final_<slug>.mp4` — ready to upload to YouTube.
@@ -53,7 +53,7 @@ Script output: `.tmp/final_<slug>.mp4` — ready to upload to YouTube.
 
 - File: `.tmp/final_<slug>.mp4`
 - Format: MP4, H.264 + AAC (YouTube-compatible)
-- Size estimate: ~1-3 GB for 2 hours at 1080p
+- Size estimate: ~0.5–1.5 GB for 1 hour at 1080p
 
 After assembly, Nova should:
 1. Confirm file was created and print file size

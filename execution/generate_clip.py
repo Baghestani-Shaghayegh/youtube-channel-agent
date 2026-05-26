@@ -5,8 +5,8 @@ Generates a short space ambient video clip using Google Veo 2,
 then loops it to the target duration using ffmpeg.
 
 Usage:
-  python execution/generate_clip.py "cosmic nebula drift" --duration 7200
-  (duration in seconds, default 7200 = 2 hours)
+  python execution/generate_clip.py "cosmic nebula drift" --duration 3600
+  (duration in seconds, default 3600 = 1 hour)
 
 Output: .tmp/video_<slug>.mp4
 """
@@ -129,6 +129,8 @@ def main():
         args = args[:idx] + args[idx+2:]
 
     theme = " ".join(args) if args else "cosmic nebula drift"
+    if "duration" not in sys.argv:
+        duration = 3600  # default 1 hour per channel strategy
     path = generate_clip(theme, duration)
     print(f"\nVideo ready: {path}")
     print("Add your music track, then upload to YouTube.")
