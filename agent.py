@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agent.py — Interactive + monitoring agent for space lofi YouTube channel research.
+agent.py — Nova: YouTube channel growth analyst + video production assistant.
 
 Usage:
   python agent.py                        # interactive chat mode
@@ -14,9 +14,11 @@ import json
 import csv
 import re
 import time
+import subprocess
+import urllib.request
 from pathlib import Path
 from datetime import datetime, timezone
-import sys
+
 sys.path.insert(0, str(Path(__file__).parent / "execution"))
 from load_env import load_env
 load_env()
@@ -32,13 +34,13 @@ DIRECTIVES_DIR = Path("directives")
 DATA_FILE = Path(".tmp/channel_research_master.csv")
 CONVERSATION_LOG = Path("memory/conversation_history.json")
 SLACK_WEBHOOK = os.getenv("SLACK_WEBHOOK_URL", "")
+RAW_DIR = Path(".tmp/raw")
 
 # ---------------------------------------------------------------------------
 # Memory & context loading
 # ---------------------------------------------------------------------------
 
 def load_memory() -> str:
-    """Load all memory files into a single context string."""
     parts = []
     if MEMORY_DIR.exists():
         for f in sorted(MEMORY_DIR.glob("*.md")):
@@ -47,7 +49,6 @@ def load_memory() -> str:
 
 
 def load_directives() -> str:
-    """Load all directives into context."""
     parts = []
     if DIRECTIVES_DIR.exists():
         for f in sorted(DIRECTIVES_DIR.glob("*.md")):
@@ -57,7 +58,6 @@ def load_directives() -> str:
 
 
 def load_channel_data(limit: int = 20) -> str:
-    """Load top channel data from CSV as context."""
     if not DATA_FILE.exists():
         return "No channel data available yet. Run youtube_channel_research.py first."
     with open(DATA_FILE, newline="", encoding="utf-8") as f:
@@ -83,7 +83,7 @@ def load_channel_data(limit: int = 20) -> str:
 def load_conversation_history() -> list:
     if CONVERSATION_LOG.exists():
         try:
-            return json.loads(CONVERSATION_LOG.read_text())[-20:]  # last 20 turns
+            return json.loads(CONVERSATION_LOG.read_text())[-20:]
         except Exception:
             return []
     return []
@@ -99,7 +99,7 @@ def build_system_prompt() -> str:
     directives = load_directives()
     channel_data = load_channel_data()
 
-    return f"""You are Nova — a YouTube channel growth analyst for a space-themed lofi/ambient music channel.
+    return f"""You are Nova — a YouTube channel growth analyst and video production assistant for Nebula Drift, a space-themed cosmic ambient music channel.
 
 ## Your Persona
 
@@ -112,28 +112,36 @@ def build_system_prompt() -> str:
 
 **Your 6 core traits — apply all of them in every response:**
 
-1. **Curious** — Always ask "why is this happening?" not just "what is happening." Dig one layer deeper. If a video performed well, find out what specifically caused it.
+1. **Curious** — Always ask "why is this happening?" not just "what is happening." Dig one layer deeper.
+2. **Skeptical** — Question weak strategies. If the data doesn't support a plan, push back.
+3. **Accountable** — You remember what was discussed. Follow up on past advice.
+4. **Pattern spotter** — Connect dots across data points the user wouldn't notice on their own.
+5. **Proactive** — Flag opportunities and risks without being asked.
+6. **Encouraging with teeth** — Celebrate real wins with specific recognition. Push hard when they're slipping.
 
-2. **Skeptical** — Question weak strategies. If the data doesn't support a plan, push back. Your value is in being right, not in being agreeable.
+## Your Role & Tools
 
-3. **Accountable** — You remember what was discussed. Follow up on past advice. If you recommended posting a video last week, check if they did. Hold them to their goals.
+You have tools you can call directly — use them without asking for permission when the intent is clear:
 
-4. **Pattern spotter** — Connect dots across data points the user wouldn't notice on their own. Example: "VIATMOS uploaded on Fridays 8 of their last 10 times — that's not random."
+- **list_raw_files** — see what video clips and audio tracks are available
+- **assemble_video** — loop a clip + track into a YouTube-ready video
+- **generate_thumbnail** — create a thumbnail image for a video
+- **send_slack_message** — notify the user on Slack when a task completes
 
-5. **Proactive** — Flag opportunities and risks without being asked. If a competitor just had a breakout week, bring it up. Don't wait to be asked.
+When assembling a video:
+1. Call list_raw_files first to see what's available
+2. Pick the best clip + track combo (check upload_history to avoid repeats)
+3. Confirm your selection in a brief message, then immediately proceed — don't wait for a second approval unless files are ambiguous
+4. Assemble the video
+5. When done, send a Slack message with the result (file path, size, title)
+6. Suggest the next step (thumbnail, then upload)
 
-6. **Encouraging with teeth** — Celebrate real wins with specific recognition. Push hard when they're slipping. "You didn't post this week — VIATMOS posted twice. That gap matters."
+## Architecture
 
-## Your Role
-
-You operate within a 3-layer architecture:
+You operate within a 3-layer system:
 - Layer 1: Directives (SOPs in /directives/) — what to do
 - Layer 2: You (Nova) — intelligent decision making, pattern analysis, strategy
 - Layer 3: Execution scripts in /execution/ — deterministic Python tools
-
-When the user asks you to run a script, give them the exact command.
-When you learn something new, suggest updating the relevant memory or directive file.
-Always reference real channel names, real numbers, real dates.
 
 ---
 
@@ -153,6 +161,251 @@ Today's date: {datetime.now().strftime('%Y-%m-%d')}
 """
 
 # ---------------------------------------------------------------------------
+# Tool definitions (Claude tool-use schema)
+# ---------------------------------------------------------------------------
+
+TOOLS = [
+    {
+        "name": "list_raw_files",
+        "description": "List available raw video clips and audio tracks in the .tmp/raw/ folder. Call this before assembling a video to see what files are available.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "assemble_video",
+        "description": "Assemble a YouTube-ready video by looping a raw video clip and audio track to the target duration using ffmpeg. Output goes to .tmp/final_<slug>.mp4.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "video": {
+                    "type": "string",
+                    "description": "Path to the raw video clip file (e.g. .tmp/raw/nebula_clip.mp4)"
+                },
+                "audio": {
+                    "type": "string",
+                    "description": "Path to the audio track file (e.g. .tmp/raw/cosmic_track.mp3)"
+                },
+                "title": {
+                    "type": "string",
+                    "description": "YouTube video title (used for filename and metadata)"
+                },
+                "duration": {
+                    "type": "integer",
+                    "description": "Target duration in seconds. Default is 3600 (1 hour). Use 7200 for 2 hours."
+                }
+            },
+            "required": ["video", "audio", "title"]
+        }
+    },
+    {
+        "name": "generate_thumbnail",
+        "description": "Generate a YouTube thumbnail image for a video using Gemini. Output goes to .tmp/thumbnail_<slug>.png.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {
+                    "type": "string",
+                    "description": "The video title to base the thumbnail on"
+                }
+            },
+            "required": ["title"]
+        }
+    },
+    {
+        "name": "send_slack_message",
+        "description": "Send a message to the Nebula Drift Slack channel. Use this to notify the user when a video assembly or other task is complete.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "The message to send. Use Slack markdown (*bold*, _italic_). Include key details like file path, size, and next steps."
+                }
+            },
+            "required": ["message"]
+        }
+    }
+]
+
+# ---------------------------------------------------------------------------
+# Tool implementations
+# ---------------------------------------------------------------------------
+
+def tool_list_raw_files() -> str:
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    video_exts = {".mp4", ".mov", ".mkv", ".avi"}
+    audio_exts = {".mp3", ".wav", ".flac", ".aac", ".m4a"}
+
+    all_files = list(RAW_DIR.iterdir())
+    videos = sorted([f for f in all_files if f.suffix.lower() in video_exts])
+    audios = sorted([f for f in all_files if f.suffix.lower() in audio_exts])
+
+    if not videos and not audios:
+        return (
+            f"No files found in {RAW_DIR}/\n"
+            "Add your raw video clips and music tracks there, then ask me again."
+        )
+
+    lines = []
+    if videos:
+        lines.append("Video clips:")
+        for v in videos:
+            size_mb = v.stat().st_size / 1024 / 1024
+            lines.append(f"  {v.name}  ({size_mb:.0f} MB)  [{RAW_DIR / v.name}]")
+    if audios:
+        lines.append("Audio tracks:")
+        for a in audios:
+            size_mb = a.stat().st_size / 1024 / 1024
+            lines.append(f"  {a.name}  ({size_mb:.0f} MB)  [{RAW_DIR / a.name}]")
+    return "\n".join(lines)
+
+
+def tool_assemble_video(video: str, audio: str, title: str, duration: int = 3600) -> str:
+    script = Path(__file__).parent / "execution" / "assemble_video.py"
+    cmd = [
+        sys.executable, str(script),
+        "--video", video,
+        "--audio", audio,
+        "--duration", str(duration),
+        "--title", title,
+    ]
+    print(f"\n  → Running: {' '.join(cmd)}\n")
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent)
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        return f"Assembly failed:\n{result.stderr[-600:]}"
+
+
+def tool_generate_thumbnail(title: str) -> str:
+    script = Path(__file__).parent / "execution" / "generate_thumbnail.py"
+    cmd = [sys.executable, str(script), title]
+    print(f"\n  → Running: {' '.join(cmd)}\n")
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent)
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        return f"Thumbnail generation failed:\n{result.stderr[-400:]}"
+
+
+def tool_send_slack(message: str) -> str:
+    if not SLACK_WEBHOOK:
+        return "No SLACK_WEBHOOK_URL set in .env — message not sent."
+    payload = json.dumps({"text": message}).encode()
+    req = urllib.request.Request(
+        SLACK_WEBHOOK,
+        data=payload,
+        headers={"Content-Type": "application/json"}
+    )
+    try:
+        urllib.request.urlopen(req)
+        return "Slack message sent successfully."
+    except Exception as e:
+        return f"Slack error: {e}"
+
+
+def execute_tool(name: str, inputs: dict) -> str:
+    """Dispatch a tool call to its implementation."""
+    if name == "list_raw_files":
+        return tool_list_raw_files()
+    elif name == "assemble_video":
+        return tool_assemble_video(**inputs)
+    elif name == "generate_thumbnail":
+        return tool_generate_thumbnail(**inputs)
+    elif name == "send_slack_message":
+        return tool_send_slack(inputs["message"])
+    else:
+        return f"Unknown tool: {name}"
+
+
+def content_to_serializable(content):
+    """Convert API content blocks to plain dicts for JSON storage."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        result = []
+        for block in content:
+            if hasattr(block, "type"):
+                if block.type == "text":
+                    result.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    result.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    })
+            elif isinstance(block, dict):
+                result.append(block)
+        return result
+    return content
+
+# ---------------------------------------------------------------------------
+# Chat with agentic tool-use loop
+# ---------------------------------------------------------------------------
+
+def chat(user_input: str, history: list) -> str:
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    system = build_system_prompt()
+
+    history.append({"role": "user", "content": user_input})
+
+    # Agentic loop — keep going until Claude stops calling tools
+    while True:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=4096,
+            system=system,
+            messages=history,
+            tools=TOOLS,
+        )
+
+        if response.stop_reason == "tool_use":
+            # Print any text Nova said before invoking tools
+            for block in response.content:
+                if hasattr(block, "type") and block.type == "text" and block.text.strip():
+                    print(f"\nNova: {block.text.strip()}")
+
+            # Add assistant turn to history (serializable format)
+            history.append({
+                "role": "assistant",
+                "content": content_to_serializable(response.content)
+            })
+
+            # Execute each tool and collect results
+            tool_results = []
+            for block in response.content:
+                if not (hasattr(block, "type") and block.type == "tool_use"):
+                    continue
+                print(f"\n[Tool: {block.name}]")
+                result = execute_tool(block.name, block.input)
+                print(result[:300] + ("..." if len(result) > 300 else ""))
+                tool_results.append({
+                    "type": "tool_result",
+                    "tool_use_id": block.id,
+                    "content": result,
+                })
+
+            # Feed results back for the next loop iteration
+            history.append({"role": "user", "content": tool_results})
+
+        else:
+            # Final text response — done
+            reply = "".join(
+                block.text for block in response.content
+                if hasattr(block, "type") and block.type == "text"
+            )
+            history.append({"role": "assistant", "content": reply})
+            return reply
+
+# ---------------------------------------------------------------------------
 # Monitoring report
 # ---------------------------------------------------------------------------
 
@@ -160,7 +413,6 @@ def run_monitoring_report():
     """Generate a weekly monitoring report comparing current vs stored data."""
     print("Running weekly monitoring report...")
 
-    # Load stored data
     if not DATA_FILE.exists():
         print("No data file found. Run youtube_channel_research.py first.")
         return
@@ -170,12 +422,13 @@ def run_monitoring_report():
 
     space = [r for r in rows if r.get("Theme") == "Space ✓"]
 
-    # Fetch current stats for monitored channels
     from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-
     yt = build("youtube", "v3", developerKey=os.getenv("YOUTUBE_API_KEY"))
-    monitor_ids = [r["URL"].split("/")[-1] for r in space if r["Subscribers"].isdigit() and int(r["Subscribers"]) > 100]
+    monitor_ids = [
+        r["URL"].split("/")[-1]
+        for r in space
+        if r["Subscribers"].isdigit() and int(r["Subscribers"]) > 100
+    ]
 
     if not monitor_ids:
         print("No channels to monitor.")
@@ -184,7 +437,6 @@ def run_monitoring_report():
     resp = yt.channels().list(id=",".join(monitor_ids[:50]), part="snippet,statistics").execute()
     current = {item["id"]: item for item in resp.get("items", [])}
 
-    # Build report
     report_lines = [
         f"📡 *Weekly Space Channel Monitor* — {datetime.now().strftime('%Y-%m-%d')}",
         "",
@@ -199,11 +451,9 @@ def run_monitoring_report():
         curr_subs = int(curr_stats.get("subscriberCount", 0))
         prev_subs = int(r["Subscribers"]) if r["Subscribers"].isdigit() else 0
         sub_delta = curr_subs - prev_subs
-
         curr_views = int(curr_stats.get("viewCount", 0))
         prev_views = int(r["Total Views"])
         view_delta = curr_views - prev_views
-
         delta_str = f"+{sub_delta:,}" if sub_delta >= 0 else f"{sub_delta:,}"
         report_lines.append(
             f"• *{r['Channel Name']}* — {curr_subs:,} subs ({delta_str} this week) | +{view_delta:,} views"
@@ -212,7 +462,7 @@ def run_monitoring_report():
     report_lines += [
         "",
         "*Your Action Items This Week:*",
-        "• Post 1 new space ambient video (target: 1–3 hrs)",
+        "• Post 1 new space ambient video (1 hour)",
         "• Check VIATMOS for new upload — study title/thumbnail",
         "• Review YouTube Studio watch time on your recent uploads",
         "",
@@ -222,17 +472,10 @@ def run_monitoring_report():
     report = "\n".join(report_lines)
     print(report)
 
-    # Send to Slack
     if SLACK_WEBHOOK:
-        import urllib.request
-        payload = json.dumps({"text": report}).encode()
-        req = urllib.request.Request(SLACK_WEBHOOK, data=payload, headers={"Content-Type": "application/json"})
-        urllib.request.urlopen(req)
+        tool_send_slack(report)
         print("\nReport sent to Slack.")
-    else:
-        print("\n(No SLACK_WEBHOOK_URL set — skipping Slack notification)")
 
-    # Save report to memory
     report_path = MEMORY_DIR / f"monitor_{datetime.now().strftime('%Y%m%d')}.md"
     report_path.write_text(report)
     print(f"Report saved to {report_path}")
@@ -242,27 +485,7 @@ def run_monitoring_report():
 # Interactive chat
 # ---------------------------------------------------------------------------
 
-def chat(user_input: str, history: list) -> str:
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    system = build_system_prompt()
-
-    history.append({"role": "user", "content": user_input})
-
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=2048,
-        system=system,
-        messages=history,
-    )
-
-    reply = response.content[0].text
-    history.append({"role": "assistant", "content": reply})
-    return reply
-
-
 def refresh_channel_stats():
-    """Run your_channel_analytics.py and return the output."""
-    import subprocess
     script = Path(__file__).parent / "execution" / "your_channel_analytics.py"
     result = subprocess.run(
         [sys.executable, str(script)],
@@ -272,7 +495,7 @@ def refresh_channel_stats():
 
 
 def interactive_mode():
-    print("Space Lofi Channel Agent")
+    print("Nova — Nebula Drift Channel Assistant")
     print("Type your question, or 'quit' to exit.\n")
 
     history = load_conversation_history()
@@ -289,9 +512,8 @@ def interactive_mode():
         if not user_input:
             continue
 
-        # Auto-refresh channel stats when user asks about their channel
         channel_triggers = ["how's my channel", "my channel stats", "how am i doing",
-                           "check my channel", "my views", "my subscribers", "my videos"]
+                            "check my channel", "my views", "my subscribers", "my videos"]
         if any(t in user_input.lower() for t in channel_triggers):
             print("(Refreshing your channel stats...)")
             refresh_channel_stats()
@@ -302,7 +524,7 @@ def interactive_mode():
             break
 
         reply = chat(user_input, history)
-        print(f"\nAgent: {reply}\n")
+        print(f"\nNova: {reply}\n")
         save_conversation_history(history)
 
 
@@ -318,7 +540,6 @@ def main():
     elif args[0] == "--monitor":
         run_monitoring_report()
     else:
-        # Single query mode
         query = " ".join(args)
         history = load_conversation_history()
         reply = chat(query, history)
