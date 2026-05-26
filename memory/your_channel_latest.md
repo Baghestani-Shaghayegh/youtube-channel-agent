@@ -1,0 +1,15 @@
+# Astronaut Girl — Channel Report (2026-05-26)
+
+## Your Channel Stats
+- Subscribers: 0
+- Total Views: 0
+- Videos: 0
+- Channel created: 2026-02-15
+
+## Your Videos
+- No videos uploaded yet.
+
+## vs Competitors
+- Relaxation Ambient Music: 456,000 subs | 137,477 recent avg views | 1.9/mo
+- Space Relax Music Channel: 63,600 subs | 1,697 recent avg views | 15.8/mo
+- VIATMOS: 57,500 subs | 86,645 recent avg views | 4.3/mo
