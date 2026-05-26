@@ -260,6 +260,17 @@ def chat(user_input: str, history: list) -> str:
     return reply
 
 
+def refresh_channel_stats():
+    """Run your_channel_analytics.py and return the output."""
+    import subprocess
+    script = Path(__file__).parent / "execution" / "your_channel_analytics.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True, text=True, cwd=str(Path(__file__).parent)
+    )
+    return result.stdout if result.returncode == 0 else f"Error: {result.stderr[:300]}"
+
+
 def interactive_mode():
     print("Space Lofi Channel Agent")
     print("Type your question, or 'quit' to exit.\n")
@@ -277,6 +288,14 @@ def interactive_mode():
 
         if not user_input:
             continue
+
+        # Auto-refresh channel stats when user asks about their channel
+        channel_triggers = ["how's my channel", "my channel stats", "how am i doing",
+                           "check my channel", "my views", "my subscribers", "my videos"]
+        if any(t in user_input.lower() for t in channel_triggers):
+            print("(Refreshing your channel stats...)")
+            refresh_channel_stats()
+
         if user_input.lower() in ("quit", "exit", "bye"):
             save_conversation_history(history)
             print("Conversation saved. Bye!")

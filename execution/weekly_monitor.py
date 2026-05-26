@@ -214,5 +214,20 @@ def main():
     print("Done.")
 
 
+def run_your_channel():
+    """Run your_channel_analytics.py as part of the weekly report."""
+    import subprocess
+    script = Path(__file__).parent / "your_channel_analytics.py"
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True, text=True
+    )
+    if result.returncode == 0:
+        print("Your channel stats updated.")
+    else:
+        print(f"Channel stats error: {result.stderr[:200]}")
+
+
 if __name__ == "__main__":
+    run_your_channel()
     main()
