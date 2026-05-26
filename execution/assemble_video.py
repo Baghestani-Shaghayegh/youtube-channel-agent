@@ -108,7 +108,17 @@ def assemble_video(
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    slug = slugify(title) if title else datetime.now().strftime("%Y%m%d-%H%M%S")
+    # Extract number from video filename (e.g. video_01.mp4 → "01")
+    # Falls back to slugified title or timestamp if no number found
+    num_match = re.search(r"(\d+)", video_path.stem)
+    if num_match:
+        file_number = num_match.group(1).zfill(2)  # ensure at least 2 digits
+        slug = file_number
+    elif title:
+        slug = slugify(title)
+    else:
+        slug = datetime.now().strftime("%Y%m%d-%H%M%S")
+
     if output_path is None:
         output_path = OUTPUT_DIR / f"final_{slug}.mp4"
 
@@ -123,7 +133,7 @@ def assemble_video(
 
     # --- Step 1: Loop video to target duration ---
     # Use stream copy (no re-encode) — much faster for H.264
-    looped_video = OUTPUT_DIR / f"_loop_video_{slug}.mp4"
+    looped_video = OUTPUT_DIR / f"_tmp_video_{slug}.mp4"
     print("Step 1/3: Looping video (stream copy, no re-encode)...")
 
     cmd_video = [
@@ -142,7 +152,7 @@ def assemble_video(
 
     # --- Step 2: Loop audio to target duration ---
     # Convert to AAC so it merges cleanly with the video container
-    looped_audio = OUTPUT_DIR / f"_loop_audio_{slug}.m4a"
+    looped_audio = OUTPUT_DIR / f"_tmp_audio_{slug}.m4a"
     print("Step 2/3: Looping audio (encoding to AAC)...")
 
     cmd_audio = [
