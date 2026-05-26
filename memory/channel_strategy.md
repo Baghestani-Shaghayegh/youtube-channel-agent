@@ -30,7 +30,7 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Don't quit early — views come before subscribers in this niche
 
 ## Your Channel
-- **Channel Name:** Nebula Drift (user originally planned "Astronaut Girl" — name TBD)
+- **Channel Name:** Nebula Drift ✓ (decided May 2026)
 - **Channel ID:** UCZJe8Esgl8BWJv_XpAC1FBA
 - **Channel URL:** https://www.youtube.com/channel/UCZJe8Esgl8BWJv_XpAC1FBA
 - **Created:** May 2026

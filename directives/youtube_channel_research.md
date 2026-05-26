@@ -15,7 +15,10 @@ Produce a spreadsheet of competitor YouTube channels with key growth metrics to 
 
 ## Tools / Scripts
 
-- `execution/youtube_channel_research.py` — discovers channels via search, pulls stats, writes output
+- `execution/youtube_channel_research.py` — discovers competitor channels via search, pulls stats, writes output
+- `execution/your_channel_analytics.py` — pulls YOUR channel stats (Nebula Drift), recent video performance, and compares against top competitors. Saves to `memory/your_channel_latest.md` so Nova reads it automatically.
+- `execution/weekly_monitor.py` — runs every Monday via cron, updates competitor data, sends Slack report
+- `execution/export_to_sheets.py` — pushes any CSV to a new Google Sheet
 - YouTube Data API v3 (free, 10,000 units/day quota)
   - `search.list` costs 100 units per call
   - `channels.list` costs 1 unit per call
