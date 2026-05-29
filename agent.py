@@ -153,6 +153,22 @@ You have tools you can call directly — use them without asking for permission 
 - **assemble_video** — loop a clip + track into a YouTube-ready video
 - **generate_thumbnail** — create a thumbnail image for a video
 - **send_slack_message** — notify the user on Slack when a task completes
+- **read_file** — read any file in the project (scripts, directives, memory)
+- **write_file** — write or overwrite any file in the project
+- **run_command** — run a shell command in the project directory
+
+## Self-Annealing: Fix Broken Scripts Yourself
+
+When a script fails, DO NOT just report the error and stop. Fix it:
+1. Read the error message carefully
+2. Use **read_file** to inspect the broken script
+3. Identify the exact problem (wrong API, bad filter syntax, missing import, etc.)
+4. Use **write_file** to fix the script
+5. Use **run_command** to test the fix (e.g. `python3 execution/assemble_video.py --help`)
+6. If the fix works, retry the original task
+7. Update the relevant directive in directives/ to document what you learned
+
+Only escalate to the user if you've tried and the fix requires information you don't have (e.g. a missing API key, a file that doesn't exist).
 
 When assembling a video:
 1. Call list_raw_files first to see what's available
@@ -253,6 +269,52 @@ TOOLS = [
             },
             "required": ["message"]
         }
+    },
+    {
+        "name": "read_file",
+        "description": "Read the contents of any file in the project (scripts, directives, memory files). Use this to inspect a broken script before fixing it.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file, relative to the project root. E.g. 'execution/assemble_video.py' or 'directives/video_assembly.md'"
+                }
+            },
+            "required": ["path"]
+        }
+    },
+    {
+        "name": "write_file",
+        "description": "Write or overwrite a file in the project. Use this to fix a broken script or update a directive. Only works within the project directory — cannot write outside it.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Path to the file relative to the project root. E.g. 'execution/assemble_video.py'"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The full content to write to the file."
+                }
+            },
+            "required": ["path", "content"]
+        }
+    },
+    {
+        "name": "run_command",
+        "description": "Run a shell command in the project directory. Use this to test a fixed script, run ffprobe/ffmpeg diagnostics, check ffmpeg version, or validate a fix before reporting success. Output is capped at 2000 chars.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string",
+                    "description": "The shell command to run. Runs from the project root directory. E.g. 'python3 execution/assemble_video.py --help' or 'ffmpeg -version'"
+                }
+            },
+            "required": ["command"]
+        }
     }
 ]
 
@@ -337,6 +399,61 @@ def tool_send_slack(message: str) -> str:
         return f"Slack error: {e}"
 
 
+PROJECT_ROOT = Path(__file__).parent.resolve()
+
+
+def tool_read_file(path: str) -> str:
+    target = (PROJECT_ROOT / path).resolve()
+    # Safety: must stay inside the project
+    if not str(target).startswith(str(PROJECT_ROOT)):
+        return f"Refused: path is outside the project directory."
+    if not target.exists():
+        return f"File not found: {path}"
+    try:
+        return target.read_text(encoding="utf-8")
+    except Exception as e:
+        return f"Error reading file: {e}"
+
+
+def tool_write_file(path: str, content: str) -> str:
+    target = (PROJECT_ROOT / path).resolve()
+    # Safety: must stay inside the project
+    if not str(target).startswith(str(PROJECT_ROOT)):
+        return f"Refused: path is outside the project directory."
+    # Safety: never overwrite .env or credentials
+    if target.name in (".env", "credentials.json", "token.json", "token_yt.json"):
+        return f"Refused: will not overwrite sensitive file {target.name}."
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+        return f"Written: {path} ({len(content)} chars)"
+    except Exception as e:
+        return f"Error writing file: {e}"
+
+
+def tool_run_command(command: str) -> str:
+    print(f"\n  → $ {command}\n")
+    result = subprocess.run(
+        command,
+        shell=True,
+        capture_output=True,
+        text=True,
+        cwd=str(PROJECT_ROOT),
+        timeout=300,   # 5 min max
+    )
+    output = ""
+    if result.stdout:
+        output += result.stdout
+    if result.stderr:
+        output += result.stderr
+    output = output.strip()
+    if len(output) > 2000:
+        output = output[:2000] + "\n...(truncated)"
+    if not output:
+        output = f"(exit code {result.returncode}, no output)"
+    return output
+
+
 def execute_tool(name: str, inputs: dict) -> str:
     """Dispatch a tool call to its implementation."""
     if name == "list_raw_files":
@@ -347,6 +464,12 @@ def execute_tool(name: str, inputs: dict) -> str:
         return tool_generate_thumbnail(**inputs)
     elif name == "send_slack_message":
         return tool_send_slack(inputs["message"])
+    elif name == "read_file":
+        return tool_read_file(inputs["path"])
+    elif name == "write_file":
+        return tool_write_file(inputs["path"], inputs["content"])
+    elif name == "run_command":
+        return tool_run_command(inputs["command"])
     else:
         return f"Unknown tool: {name}"
 
