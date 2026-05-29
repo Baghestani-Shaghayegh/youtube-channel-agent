@@ -23,6 +23,7 @@ Requirements:
 import os
 import sys
 import re
+import math
 import subprocess
 import argparse
 from pathlib import Path
@@ -240,20 +241,34 @@ def assemble_video(
     preprocess_clip(video_path, clean_clip, fade_duration=fade_duration)
 
     # --- Step 1: Loop the clean clip to target duration ---
-    # Stream copy is fine now — clip is already re-encoded in Step 0
+    # Use concat demuxer: write a playlist of N repeats then trim to exact duration.
+    # Much more reliable than -stream_loop with -c copy, which silently fails
+    # on re-encoded clips and only plays through once.
     looped_video = OUTPUT_DIR / f"_tmp_video_{slug}.mp4"
-    print("Step 1/3: Looping clean clip to target duration...")
+    print("Step 1/3: Looping clean clip to target duration (concat)...")
+
+    clip_duration = get_duration(clean_clip)
+    if clip_duration <= 0:
+        raise RuntimeError("Could not read preprocessed clip duration.")
+
+    repeat_count = math.ceil(target_duration / clip_duration) + 2  # +2 for safety margin
+    playlist_path = OUTPUT_DIR / f"_playlist_{slug}.txt"
+    with open(playlist_path, "w") as f:
+        for _ in range(repeat_count):
+            f.write(f"file '{clean_clip.resolve()}'\n")
 
     cmd_video = [
         "ffmpeg", "-y",
-        "-stream_loop", "-1",
-        "-i", str(clean_clip),
+        "-f", "concat",
+        "-safe", "0",
+        "-i", str(playlist_path),
         "-t", str(target_duration),
         "-c:v", "copy",
         "-an",
         str(looped_video)
     ]
     result = subprocess.run(cmd_video, capture_output=True, text=True)
+    playlist_path.unlink(missing_ok=True)
     if result.returncode != 0:
         raise RuntimeError(f"Video loop failed:\n{result.stderr[-500:]}")
     print(f"  Done — {looped_video.stat().st_size / 1024 / 1024:.0f} MB")
