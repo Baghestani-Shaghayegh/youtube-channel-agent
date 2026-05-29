@@ -81,12 +81,38 @@ def load_channel_data(limit: int = 20) -> str:
 
 
 def load_conversation_history() -> list:
-    if CONVERSATION_LOG.exists():
-        try:
-            return json.loads(CONVERSATION_LOG.read_text())[-20:]
-        except Exception:
-            return []
-    return []
+    if not CONVERSATION_LOG.exists():
+        return []
+    try:
+        history = json.loads(CONVERSATION_LOG.read_text())
+    except Exception:
+        return []
+
+    # Strip tool_use and tool_result blocks — they reference IDs that no
+    # longer exist in a new session and cause a 400 from the API.
+    # Keep only plain text turns so history loads safely every time.
+    clean = []
+    for msg in history:
+        content = msg.get("content", "")
+
+        # String content (normal text turn) — keep as-is
+        if isinstance(content, str):
+            clean.append(msg)
+            continue
+
+        # List content — filter to text blocks only
+        if isinstance(content, list):
+            text_blocks = [
+                b for b in content
+                if isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip()
+            ]
+            if text_blocks:
+                # Flatten to a single string so it's always safe to reload
+                combined = " ".join(b["text"] for b in text_blocks)
+                clean.append({"role": msg["role"], "content": combined})
+            # If only tool blocks, drop the turn entirely
+
+    return clean[-20:]
 
 
 def save_conversation_history(history: list):
