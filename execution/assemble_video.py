@@ -1,17 +1,20 @@
 """
 assemble_video.py
 
-Assembles a YouTube-ready video by looping a raw video clip and audio track
-to a target duration using ffmpeg. No re-encoding on the video = fast.
+Assembles a YouTube-ready video by:
+  1. Preprocessing the raw clip — removes Veo watermark + creates seamless loop
+  2. Looping the clean clip to target duration
+  3. Looping the audio track
+  4. Merging both into a final MP4
 
 Usage:
   python execution/assemble_video.py \
-    --video ".tmp/raw/nebula_clip.mp4" \
-    --audio ".tmp/raw/ambient_track.mp3" \
+    --video ".tmp/raw/video_01.mp4" \
+    --audio ".tmp/raw/audio_01.mp3" \
     --duration 3600 \
     --title "Purple Nebula Drift — 1 Hour Deep Space Ambient"
 
-Output: .tmp/final_<slug>.mp4
+Output: .tmp/final_01.mp4
 
 Requirements:
   ffmpeg installed (brew install ffmpeg / apt install ffmpeg)
@@ -40,10 +43,7 @@ def slugify(text: str) -> str:
 
 def check_ffmpeg() -> bool:
     try:
-        result = subprocess.run(
-            ["ffmpeg", "-version"],
-            capture_output=True, check=True
-        )
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
@@ -85,20 +85,92 @@ def format_duration(seconds: int) -> str:
     return f"{m}m {s:02d}s"
 
 
+def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) -> Path:
+    """
+    Fix the raw clip before looping:
+      1. Remove Veo watermark from the bottom-right corner
+      2. Create a seamless crossfade so the loop transition is smooth
+
+    How the seamless loop works:
+      - Take the last `fade_duration` seconds of the clip (the "ending")
+      - Take the first `fade_duration` seconds of the clip (the "beginning")
+      - Crossfade ending → beginning to create a smooth bridge
+      - Final clip = [main body] + [bridge]
+      - When looped, the bridge makes the cut invisible
+
+    Re-encodes the clip (required for filters). Fast because clips are short.
+    """
+    duration = get_duration(raw_clip)
+    if duration <= 0:
+        raise RuntimeError(f"Could not read duration of {raw_clip.name}. Is ffprobe installed?")
+
+    # Cap fade to a third of the clip length so we don't overlap too much
+    fade_duration = min(fade_duration, duration / 3)
+    fade_start = duration - fade_duration
+
+    print(f"  Clip: {duration:.1f}s  |  Crossfade: {fade_duration:.1f}s  |  Watermark: removing")
+
+    # ffmpeg filter chain:
+    # [0:v] → delogo (wipe watermark) → split into 3 streams
+    #   v1 → trim to main body (0 → fade_start)
+    #   v2 → trim last fade_duration seconds (the "ending")
+    #   v3 → trim first fade_duration seconds (the "beginning")
+    # xfade ending→beginning = smooth 2-second bridge
+    # concat main + bridge = seamless looping clip
+    filter_complex = (
+        # Wipe the Veo watermark — covers bottom-right ~230x60px area
+        # Using delogo: reconstructs the region from surrounding pixels
+        f"[0:v]delogo=x=iw-240:y=ih-65:w=235:h=60[clean];"
+        # Split into 3 copies for the crossfade processing
+        f"[clean]split=3[v1][v2][v3];"
+        # Main body: clip from 0 to (duration - fade)
+        f"[v1]trim=0:{fade_start:.4f},setpts=PTS-STARTPTS[main];"
+        # Ending: last fade_duration seconds
+        f"[v2]trim={fade_start:.4f}:{duration:.4f},setpts=PTS-STARTPTS[ending];"
+        # Beginning: first fade_duration seconds
+        f"[v3]trim=0:{fade_duration:.4f},setpts=PTS-STARTPTS[beginning];"
+        # Crossfade ending → beginning
+        f"[ending][beginning]xfade=transition=fade:duration={fade_duration:.4f}:offset=0[bridge];"
+        # Stitch together: main body + bridge
+        f"[main][bridge]concat=n=2:v=1:a=0[out]"
+    )
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(raw_clip),
+        "-filter_complex", filter_complex,
+        "-map", "[out]",
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "18",        # high quality (18 = nearly lossless)
+        "-pix_fmt", "yuv420p",
+        "-an",               # no audio — handled separately later
+        str(output)
+    ]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Clip preprocessing failed:\n{result.stderr[-700:]}")
+
+    processed_duration = get_duration(output)
+    print(f"  Preprocessed clip: {processed_duration:.1f}s  →  {output.name}")
+    return output
+
+
 def assemble_video(
     video_path: Path,
     audio_path: Path,
     target_duration: int,
     title: str,
-    output_path: Path = None
+    output_path: Path = None,
+    fade_duration: float = 2.0,
 ) -> Path:
     """
-    Loop video and audio independently to target_duration, then merge.
-
-    Strategy:
-    - Video: stream-loop (no re-encode, very fast for H.264 source)
-    - Audio: stream-loop, then re-encode to AAC (required for mixing)
-    - Merge: combine looped video + looped audio, trim to exact duration
+    Full pipeline:
+      Step 0 — Preprocess: remove watermark + create seamless loop
+      Step 1 — Loop the clean clip to target duration (stream copy, fast)
+      Step 2 — Loop audio to target duration (encode to AAC)
+      Step 3 — Merge video + audio into final MP4
     """
 
     if not video_path.exists():
@@ -108,12 +180,10 @@ def assemble_video(
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    # Extract number from video filename (e.g. video_01.mp4 → "01")
-    # Falls back to slugified title or timestamp if no number found
+    # Output filename: number from video file (video_01 → final_01)
     num_match = re.search(r"(\d+)", video_path.stem)
     if num_match:
-        file_number = num_match.group(1).zfill(2)  # ensure at least 2 digits
-        slug = file_number
+        slug = num_match.group(1).zfill(2)
     elif title:
         slug = slugify(title)
     else:
@@ -131,18 +201,23 @@ def assemble_video(
     print(f"Output: {output_path}")
     print(f"{'='*60}\n")
 
-    # --- Step 1: Loop video to target duration ---
-    # Use stream copy (no re-encode) — much faster for H.264
+    # --- Step 0: Preprocess — watermark removal + seamless loop ---
+    clean_clip = OUTPUT_DIR / f"_tmp_clean_{slug}.mp4"
+    print("Step 0/3: Preprocessing clip (watermark removal + seamless loop)...")
+    preprocess_clip(video_path, clean_clip, fade_duration=fade_duration)
+
+    # --- Step 1: Loop the clean clip to target duration ---
+    # Stream copy is fine now — clip is already re-encoded in Step 0
     looped_video = OUTPUT_DIR / f"_tmp_video_{slug}.mp4"
-    print("Step 1/3: Looping video (stream copy, no re-encode)...")
+    print("Step 1/3: Looping clean clip to target duration...")
 
     cmd_video = [
         "ffmpeg", "-y",
         "-stream_loop", "-1",
-        "-i", str(video_path),
+        "-i", str(clean_clip),
         "-t", str(target_duration),
         "-c:v", "copy",
-        "-an",                        # strip audio from video track
+        "-an",
         str(looped_video)
     ]
     result = subprocess.run(cmd_video, capture_output=True, text=True)
@@ -151,7 +226,6 @@ def assemble_video(
     print(f"  Done — {looped_video.stat().st_size / 1024 / 1024:.0f} MB")
 
     # --- Step 2: Loop audio to target duration ---
-    # Convert to AAC so it merges cleanly with the video container
     looped_audio = OUTPUT_DIR / f"_tmp_audio_{slug}.m4a"
     print("Step 2/3: Looping audio (encoding to AAC)...")
 
@@ -162,7 +236,7 @@ def assemble_video(
         "-t", str(target_duration),
         "-c:a", "aac",
         "-b:a", "192k",
-        "-vn",                        # no video
+        "-vn",
         str(looped_audio)
     ]
     result = subprocess.run(cmd_audio, capture_output=True, text=True)
@@ -177,9 +251,9 @@ def assemble_video(
         "ffmpeg", "-y",
         "-i", str(looped_video),
         "-i", str(looped_audio),
-        "-c:v", "copy",               # keep video as-is (already looped)
-        "-c:a", "copy",               # keep AAC as-is
-        "-shortest",                   # stop at whichever stream ends first
+        "-c:v", "copy",
+        "-c:a", "copy",
+        "-shortest",
         str(output_path)
     ]
     result = subprocess.run(cmd_merge, capture_output=True, text=True)
@@ -187,13 +261,14 @@ def assemble_video(
         raise RuntimeError(f"Merge failed:\n{result.stderr[-500:]}")
 
     # Clean up temp files
+    clean_clip.unlink(missing_ok=True)
     looped_video.unlink(missing_ok=True)
     looped_audio.unlink(missing_ok=True)
 
     size_mb = output_path.stat().st_size / 1024 / 1024
     print(f"  Done — {size_mb:.0f} MB")
 
-    # --- Verify duration with ffprobe ---
+    # --- Verify with ffprobe ---
     if check_ffprobe():
         actual_duration = get_duration(output_path)
         if actual_duration > 0:
@@ -242,19 +317,23 @@ def main():
                         help="Video title (used for filename slug)")
     parser.add_argument("--output", default=None,
                         help="Custom output path (optional)")
+    parser.add_argument("--fade", type=float, default=2.0,
+                        help="Crossfade duration in seconds for seamless loop (default: 2.0)")
     args = parser.parse_args()
 
-    # Check ffmpeg
     if not check_ffmpeg():
         print("ERROR: ffmpeg is not installed.")
         print("  Mac:   brew install ffmpeg")
         print("  VPS:   sudo apt install -y ffmpeg")
         sys.exit(1)
 
+    if not check_ffprobe():
+        print("ERROR: ffprobe is not installed (comes with ffmpeg).")
+        sys.exit(1)
+
     video_path = Path(args.video).expanduser().resolve()
     audio_path = Path(args.audio).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve() if args.output else None
-
     title = args.title or video_path.stem
 
     output = assemble_video(
@@ -263,14 +342,14 @@ def main():
         target_duration=args.duration,
         title=title,
         output_path=output_path,
+        fade_duration=args.fade,
     )
 
     log_to_history(video_path, audio_path, title, args.duration, output)
 
     print(f"\nNext steps:")
     print(f"  1. Generate thumbnail: python execution/generate_thumbnail.py \"{title}\"")
-    print(f"  2. Upload to YouTube manually (or ask Nova to trigger upload script)")
-    print(f"  3. Nova will mark it as uploaded in memory/upload_history.md")
+    print(f"  2. Upload to YouTube")
 
 
 if __name__ == "__main__":
