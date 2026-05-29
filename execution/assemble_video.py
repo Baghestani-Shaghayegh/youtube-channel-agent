@@ -135,23 +135,25 @@ def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) ->
 
     # Literal pixel dimensions — avoids iw/ih expression failures on newer ffmpeg
     vid_w, vid_h = get_video_dimensions(raw_clip)
-    wm_w, wm_h = 230, 60
-    wm_x = vid_w - wm_w - 5
-    wm_y = vid_h - wm_h - 5
+
+    # Watermark removal: crop off the bottom 70px (where Veo watermark lives)
+    # then scale back to original size. Clean result — no black box, no artifacts.
+    # The ~6% vertical scale-up is invisible on slow nebula footage.
+    crop_h = vid_h - 70
 
     print(f"  Clip: {duration:.1f}s  |  Resolution: {vid_w}x{vid_h}  |  Crossfade: {fade_duration:.1f}s")
-    print(f"  Watermark: delogo x={wm_x} y={wm_y} w={wm_w} h={wm_h}")
+    print(f"  Watermark: cropping bottom 70px then scaling back to {vid_w}x{vid_h}")
 
     # ffmpeg filter chain:
-    # [0:v] → delogo (inpaint watermark) → split into 3 streams
+    # [0:v] → crop bottom strip → scale back up → split into 3 streams
     #   v1 → main body: from fade_duration to fade_start  ← starts at F, not 0
     #   v2 → ending: last fade_duration seconds
     #   v3 → beginning: first fade_duration seconds (used in bridge only)
     # xfade(ending → beginning) = smooth bridge, ends at frame[fade_duration]
     # concat(main, bridge) → starts at frame[F], ends at frame[F] → seamless ✓
     filter_complex = (
-        # Inpaint the Veo watermark using surrounding pixels
-        f"[0:v]delogo=x={wm_x}:y={wm_y}:w={wm_w}:h={wm_h}[clean];"
+        # Crop bottom 70px (removes Veo watermark) then scale back to original size
+        f"[0:v]crop={vid_w}:{crop_h}:0:0,scale={vid_w}:{vid_h}[clean];"
         # Split into 3 copies
         f"[clean]split=3[v1][v2][v3];"
         # Main body: fade_duration → fade_start (NOT from 0 — this is the loop fix)

@@ -28,7 +28,7 @@ import anthropic
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MODEL = "claude-opus-4-5"
+MODEL = "claude-sonnet-4-5"
 MEMORY_DIR = Path("memory")
 DIRECTIVES_DIR = Path("directives")
 DATA_FILE = Path(".tmp/channel_research_master.csv")
@@ -157,18 +157,33 @@ You have tools you can call directly — use them without asking for permission 
 - **write_file** — write or overwrite any file in the project
 - **run_command** — run a shell command in the project directory
 
+## CRITICAL: Always execute immediately — never just plan
+
+When you decide to do something, call the tool RIGHT NOW in this same response.
+**Never** describe what you're about to do and then stop — that is a failure.
+The correct pattern is: decide → call tool → get result → call next tool → done.
+Chain all steps in one go without pausing for confirmation.
+
+Examples of WRONG behavior:
+- "I'll now fix the script and reassemble." ← then stopping with no tool call
+- "Doing that now." ← then stopping with no tool call
+- Listing steps you're about to take, then not taking them
+
+Examples of RIGHT behavior:
+- Immediately calling read_file, then write_file, then run_command, then assemble_video — all in one response flow
+
 ## Self-Annealing: Fix Broken Scripts Yourself
 
-When a script fails, DO NOT just report the error and stop. Fix it:
+When a script fails, DO NOT just report the error and stop. Fix it immediately:
 1. Read the error message carefully
 2. Use **read_file** to inspect the broken script
-3. Identify the exact problem (wrong API, bad filter syntax, missing import, etc.)
+3. Identify the exact problem
 4. Use **write_file** to fix the script
-5. Use **run_command** to test the fix (e.g. `python3 execution/assemble_video.py --help`)
-6. If the fix works, retry the original task
-7. Update the relevant directive in directives/ to document what you learned
+5. Use **run_command** to test the fix
+6. Retry the original task
+7. Update the relevant directive with what you learned
 
-Only escalate to the user if you've tried and the fix requires information you don't have (e.g. a missing API key, a file that doesn't exist).
+Only escalate to the user if the fix requires information you truly don't have.
 
 When assembling a video:
 1. Call list_raw_files first to see what's available
