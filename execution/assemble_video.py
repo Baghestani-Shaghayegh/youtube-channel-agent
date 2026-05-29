@@ -109,15 +109,19 @@ def get_video_dimensions(file_path: Path) -> tuple:
 def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) -> Path:
     """
     Fix the raw clip before looping:
-      1. Cover Veo watermark with a black box (bottom-right corner)
-      2. Create a seamless crossfade so the loop transition is smooth
+      1. Remove Veo watermark via delogo (inpaints from surrounding pixels)
+      2. Create a mathematically seamless crossfade loop
 
-    How the seamless loop works:
-      - Take the last `fade_duration` seconds of the clip (the "ending")
-      - Take the first `fade_duration` seconds of the clip (the "beginning")
-      - Crossfade ending → beginning to create a smooth bridge
-      - Final clip = [main body] + [bridge]
-      - When looped, the bridge makes the cut invisible
+    Seamless loop math (the key insight):
+      The bridge crossfades from the ENDING into the BEGINNING of the clip.
+      After the bridge, the video is at frame[fade_duration] — NOT frame[0].
+      So main must ALSO start at frame[fade_duration], not frame[0].
+      That way: end-of-bridge = start-of-main = same frame → truly seamless.
+
+      Timeline of the processed clip:
+        [fade_dur → fade_start] + [bridge: ending→beginning]
+         ^starts at F             ^ends at frame[F]
+      When looped: ...frame[F]...frame[fade_start]...bridge...frame[F]...  ✓
 
     Re-encodes the clip (required for filters). Fast because clips are short.
     """
@@ -125,45 +129,40 @@ def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) ->
     if duration <= 0:
         raise RuntimeError(f"Could not read duration of {raw_clip.name}. Is ffprobe installed?")
 
-    # Cap fade to a third of the clip length so we don't overlap too much
-    fade_duration = min(fade_duration, duration / 3)
+    # Cap fade to a quarter of the clip length
+    fade_duration = min(fade_duration, duration / 4)
     fade_start = duration - fade_duration
 
-    # Get exact pixel dimensions so we use literal values (not iw/ih expressions
-    # which fail on newer ffmpeg versions in some filters)
+    # Literal pixel dimensions — avoids iw/ih expression failures on newer ffmpeg
     vid_w, vid_h = get_video_dimensions(raw_clip)
-
-    # Watermark box: covers bottom-right ~230x60px
-    # Using drawbox (black fill) — simpler and more reliable than delogo
-    # Works perfectly on dark space backgrounds
     wm_w, wm_h = 230, 60
-    wm_x = vid_w - wm_w - 5   # 5px from right edge
-    wm_y = vid_h - wm_h - 5   # 5px from bottom edge
+    wm_x = vid_w - wm_w - 5
+    wm_y = vid_h - wm_h - 5
 
     print(f"  Clip: {duration:.1f}s  |  Resolution: {vid_w}x{vid_h}  |  Crossfade: {fade_duration:.1f}s")
-    print(f"  Watermark box: x={wm_x} y={wm_y} w={wm_w} h={wm_h} (black fill)")
+    print(f"  Watermark: delogo x={wm_x} y={wm_y} w={wm_w} h={wm_h}")
 
     # ffmpeg filter chain:
-    # [0:v] → drawbox (cover watermark) → split into 3 streams
-    #   v1 → main body (0 → fade_start)
-    #   v2 → last fade_duration seconds (the "ending")
-    #   v3 → first fade_duration seconds (the "beginning")
-    # xfade ending→beginning = smooth bridge
-    # concat main + bridge = seamless looping clip
+    # [0:v] → delogo (inpaint watermark) → split into 3 streams
+    #   v1 → main body: from fade_duration to fade_start  ← starts at F, not 0
+    #   v2 → ending: last fade_duration seconds
+    #   v3 → beginning: first fade_duration seconds (used in bridge only)
+    # xfade(ending → beginning) = smooth bridge, ends at frame[fade_duration]
+    # concat(main, bridge) → starts at frame[F], ends at frame[F] → seamless ✓
     filter_complex = (
-        # Cover Veo watermark with a solid black box
-        f"[0:v]drawbox=x={wm_x}:y={wm_y}:w={wm_w}:h={wm_h}:color=black:t=fill[clean];"
-        # Split into 3 copies for the crossfade processing
+        # Inpaint the Veo watermark using surrounding pixels
+        f"[0:v]delogo=x={wm_x}:y={wm_y}:w={wm_w}:h={wm_h}[clean];"
+        # Split into 3 copies
         f"[clean]split=3[v1][v2][v3];"
-        # Main body: clip from 0 to (duration - fade)
-        f"[v1]trim=0:{fade_start:.4f},setpts=PTS-STARTPTS[main];"
+        # Main body: fade_duration → fade_start (NOT from 0 — this is the loop fix)
+        f"[v1]trim={fade_duration:.4f}:{fade_start:.4f},setpts=PTS-STARTPTS[main];"
         # Ending: last fade_duration seconds
         f"[v2]trim={fade_start:.4f}:{duration:.4f},setpts=PTS-STARTPTS[ending];"
-        # Beginning: first fade_duration seconds
+        # Beginning: first fade_duration seconds (bridge fades into these frames)
         f"[v3]trim=0:{fade_duration:.4f},setpts=PTS-STARTPTS[beginning];"
         # Crossfade ending → beginning
         f"[ending][beginning]xfade=transition=fade:duration={fade_duration:.4f}:offset=0[bridge];"
-        # Stitch together: main body + bridge
+        # Concat: main starts at frame[F], bridge ends at frame[F] → seamless
         f"[main][bridge]concat=n=2:v=1:a=0[out]"
     )
 

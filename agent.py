@@ -28,7 +28,7 @@ import anthropic
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-MODEL = "claude-sonnet-4-5"
+MODEL = "claude-opus-4-5"
 MEMORY_DIR = Path("memory")
 DIRECTIVES_DIR = Path("directives")
 DATA_FILE = Path(".tmp/channel_research_master.csv")
