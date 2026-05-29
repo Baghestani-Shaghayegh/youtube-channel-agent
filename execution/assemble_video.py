@@ -85,10 +85,31 @@ def format_duration(seconds: int) -> str:
     return f"{m}m {s:02d}s"
 
 
+def get_video_dimensions(file_path: Path) -> tuple:
+    """Return (width, height) of the first video stream."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "quiet",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=width,height",
+            "-of", "csv=p=0",
+            str(file_path)
+        ],
+        capture_output=True, text=True
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return (1920, 1080)  # safe fallback
+    try:
+        w, h = result.stdout.strip().split(",")
+        return (int(w), int(h))
+    except Exception:
+        return (1920, 1080)
+
+
 def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) -> Path:
     """
     Fix the raw clip before looping:
-      1. Remove Veo watermark from the bottom-right corner
+      1. Cover Veo watermark with a black box (bottom-right corner)
       2. Create a seamless crossfade so the loop transition is smooth
 
     How the seamless loop works:
@@ -108,19 +129,30 @@ def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) ->
     fade_duration = min(fade_duration, duration / 3)
     fade_start = duration - fade_duration
 
-    print(f"  Clip: {duration:.1f}s  |  Crossfade: {fade_duration:.1f}s  |  Watermark: removing")
+    # Get exact pixel dimensions so we use literal values (not iw/ih expressions
+    # which fail on newer ffmpeg versions in some filters)
+    vid_w, vid_h = get_video_dimensions(raw_clip)
+
+    # Watermark box: covers bottom-right ~230x60px
+    # Using drawbox (black fill) — simpler and more reliable than delogo
+    # Works perfectly on dark space backgrounds
+    wm_w, wm_h = 230, 60
+    wm_x = vid_w - wm_w - 5   # 5px from right edge
+    wm_y = vid_h - wm_h - 5   # 5px from bottom edge
+
+    print(f"  Clip: {duration:.1f}s  |  Resolution: {vid_w}x{vid_h}  |  Crossfade: {fade_duration:.1f}s")
+    print(f"  Watermark box: x={wm_x} y={wm_y} w={wm_w} h={wm_h} (black fill)")
 
     # ffmpeg filter chain:
-    # [0:v] → delogo (wipe watermark) → split into 3 streams
-    #   v1 → trim to main body (0 → fade_start)
-    #   v2 → trim last fade_duration seconds (the "ending")
-    #   v3 → trim first fade_duration seconds (the "beginning")
-    # xfade ending→beginning = smooth 2-second bridge
+    # [0:v] → drawbox (cover watermark) → split into 3 streams
+    #   v1 → main body (0 → fade_start)
+    #   v2 → last fade_duration seconds (the "ending")
+    #   v3 → first fade_duration seconds (the "beginning")
+    # xfade ending→beginning = smooth bridge
     # concat main + bridge = seamless looping clip
     filter_complex = (
-        # Wipe the Veo watermark — covers bottom-right ~230x60px area
-        # Using delogo: reconstructs the region from surrounding pixels
-        f"[0:v]delogo=x=iw-240:y=ih-65:w=235:h=60[clean];"
+        # Cover Veo watermark with a solid black box
+        f"[0:v]drawbox=x={wm_x}:y={wm_y}:w={wm_w}:h={wm_h}:color=black:t=fill[clean];"
         # Split into 3 copies for the crossfade processing
         f"[clean]split=3[v1][v2][v3];"
         # Main body: clip from 0 to (duration - fade)
