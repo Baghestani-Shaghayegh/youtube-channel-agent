@@ -21,17 +21,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 from load_env import load_env
 load_env()
 
-from google import genai
-from google.genai import types as genai_types
+import requests
 from PIL import Image
 import io
 
-API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 OUTPUT_DIR = Path(__file__).parent.parent / ".tmp"
 
-# FREE TIER model — DO NOT change to imagen-* (requires paid plan)
-# gemini-2.0-flash-exp supports image output via response_modalities
-IMAGE_MODEL = "gemini-2.0-flash-exp"
+# Image generation via Hugging Face Inference API (free with account)
+# Model: FLUX.1-schnell — fast, high quality, free on HF
+HF_API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell"
+HF_TOKEN = os.getenv("HF_TOKEN", "")
 
 # ---------------------------------------------------------------------------
 # Prompts
@@ -72,31 +71,36 @@ Minimal design — the nebula IS the logo.
 # ---------------------------------------------------------------------------
 
 def generate_image(prompt: str, label: str) -> bytes:
-    """Call Gemini Flash (free tier) and return raw image bytes.
-    Always uses IMAGE_MODEL — never Imagen which requires paid plan."""
-    client = genai.Client(api_key=API_KEY)
-    print(f"Calling Gemini ({IMAGE_MODEL}) for {label}...")
+    """Generate image via Hugging Face Inference API (free with HF account).
+    Uses FLUX.1-schnell — fast, high quality, free tier available."""
+    headers = {"Content-Type": "application/json"}
+    if HF_TOKEN:
+        headers["Authorization"] = f"Bearer {HF_TOKEN}"
+    else:
+        print("  Warning: no HF_TOKEN set — request may be slow or blocked.")
+        print("  Get a free token at: https://huggingface.co/settings/tokens")
 
-    response = client.models.generate_content(
-        model=IMAGE_MODEL,
-        contents=prompt,
-        config=genai_types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-        ),
+    print(f"Calling Hugging Face FLUX.1-schnell for {label}...")
+    print("  (First call may take 20-60s while model loads)")
+
+    resp = requests.post(
+        HF_API_URL,
+        headers=headers,
+        json={"inputs": prompt},
+        timeout=120,
     )
 
-    for part in response.candidates[0].content.parts:
-        if part.inline_data and part.inline_data.mime_type.startswith("image"):
-            return part.inline_data.data
+    if resp.status_code == 200:
+        return resp.content
 
-    # Print any text response for debugging
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, "text") and part.text:
-            print(f"  Model text response: {part.text[:200]}")
+    if resp.status_code == 503:
+        raise RuntimeError(
+            "Model is loading on Hugging Face servers — wait 30s and try again."
+        )
 
     raise RuntimeError(
-        f"No image returned for {label}. "
-        "The free tier model may not have returned an image — try again."
+        f"Hugging Face API error {resp.status_code}: {resp.text[:300]}\n"
+        "Make sure HF_TOKEN is set in your .env file."
     )
 
 

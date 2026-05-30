@@ -28,7 +28,8 @@ API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 OUTPUT_DIR = Path(__file__).parent.parent / ".tmp"
 
 # FREE TIER model — DO NOT change to imagen-* (requires paid plan)
-IMAGE_MODEL = "gemini-2.0-flash-exp"
+# gemini-2.5-flash-image supports native image generation
+IMAGE_MODEL = "gemini-2.5-flash-image"
 
 # Nebula Drift thumbnail style — based on competitor research
 # Dark background, single glowing nebula, minimal text, high contrast
