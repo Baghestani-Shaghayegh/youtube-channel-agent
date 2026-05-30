@@ -151,9 +151,6 @@ You have tools you can call directly — use them without asking for permission 
 
 - **list_raw_files** — see what video clips and audio tracks are available
 - **assemble_video** — loop a clip + track into a YouTube-ready video
-- **generate_thumbnail** — create a thumbnail image for a video
-- **generate_banner** — generate the YouTube channel banner (2560x1440px)
-- **generate_profile** — generate the YouTube profile picture (800x800px)
 - **send_slack_message** — notify the user on Slack when a task completes
 - **read_file** — read any file in the project (scripts, directives, memory)
 - **write_file** — write or overwrite any file in the project
@@ -260,20 +257,6 @@ TOOLS = [
         }
     },
     {
-        "name": "generate_thumbnail",
-        "description": "Generate a YouTube thumbnail image for a video using Gemini. Output goes to .tmp/thumbnail_<slug>.png.",
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "The video title to base the thumbnail on"
-                }
-            },
-            "required": ["title"]
-        }
-    },
-    {
         "name": "send_slack_message",
         "description": "Send a message to the Nebula Drift Slack channel. Use this to notify the user when a video assembly or other task is complete.",
         "input_schema": {
@@ -285,24 +268,6 @@ TOOLS = [
                 }
             },
             "required": ["message"]
-        }
-    },
-    {
-        "name": "generate_banner",
-        "description": "Generate a YouTube channel banner image (2560x1440px) for Nebula Drift using Gemini. Saved to .tmp/banner.png.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        }
-    },
-    {
-        "name": "generate_profile",
-        "description": "Generate a YouTube profile picture (800x800px) for Nebula Drift using Gemini. Saved to .tmp/profile.png.",
-        "input_schema": {
-            "type": "object",
-            "properties": {},
-            "required": []
         }
     },
     {
@@ -405,19 +370,6 @@ def tool_assemble_video(video: str, audio: str, title: str, duration: int = 3600
         return f"Assembly failed:\n{result.stderr[-600:]}"
 
 
-def tool_generate_thumbnail(title: str) -> str:
-    script = Path(__file__).parent / "execution" / "generate_thumbnail.py"
-    cmd = [sys.executable, str(script), title]
-    print(f"\n  → Running: {' '.join(cmd)}\n")
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent)
-    )
-    if result.returncode == 0:
-        return result.stdout.strip()
-    else:
-        return f"Thumbnail generation failed:\n{result.stderr[-400:]}"
-
-
 def tool_send_slack(message: str) -> str:
     if not SLACK_WEBHOOK:
         return "No SLACK_WEBHOOK_URL set in .env — message not sent."
@@ -432,26 +384,6 @@ def tool_send_slack(message: str) -> str:
         return "Slack message sent successfully."
     except Exception as e:
         return f"Slack error: {e}"
-
-
-def tool_generate_banner() -> str:
-    script = Path(__file__).parent / "execution" / "generate_channel_art.py"
-    cmd = [sys.executable, str(script), "--banner"]
-    print(f"\n  → Running: {' '.join(cmd)}\n")
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent))
-    if result.returncode == 0:
-        return result.stdout.strip()
-    return f"Banner generation failed:\n{result.stderr[-400:]}"
-
-
-def tool_generate_profile() -> str:
-    script = Path(__file__).parent / "execution" / "generate_channel_art.py"
-    cmd = [sys.executable, str(script), "--profile"]
-    print(f"\n  → Running: {' '.join(cmd)}\n")
-    result = subprocess.run(cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent))
-    if result.returncode == 0:
-        return result.stdout.strip()
-    return f"Profile generation failed:\n{result.stderr[-400:]}"
 
 
 PROJECT_ROOT = Path(__file__).parent.resolve()
@@ -515,14 +447,8 @@ def execute_tool(name: str, inputs: dict) -> str:
         return tool_list_raw_files()
     elif name == "assemble_video":
         return tool_assemble_video(**inputs)
-    elif name == "generate_thumbnail":
-        return tool_generate_thumbnail(**inputs)
     elif name == "send_slack_message":
         return tool_send_slack(inputs["message"])
-    elif name == "generate_banner":
-        return tool_generate_banner()
-    elif name == "generate_profile":
-        return tool_generate_profile()
     elif name == "read_file":
         return tool_read_file(inputs["path"])
     elif name == "write_file":
