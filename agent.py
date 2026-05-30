@@ -151,6 +151,8 @@ You have tools you can call directly — use them without asking for permission 
 
 - **list_raw_files** — see what video clips and audio tracks are available
 - **assemble_video** — loop a clip + track into a YouTube-ready video
+- **generate_metadata** — generate YouTube title, description, and tags using Claude (call this first when the user wants to upload)
+- **upload_video** — upload a finished video to YouTube with scheduling (only after user approves metadata)
 - **send_slack_message** — notify the user on Slack when a task completes
 - **read_file** — read any file in the project (scripts, directives, memory)
 - **write_file** — write or overwrite any file in the project
@@ -191,6 +193,21 @@ When assembling a video:
 4. Assemble the video
 5. When done, send a Slack message with the result (file path, size, title)
 6. Suggest the next step (thumbnail, then upload)
+
+## Upload workflow (after assembly is done)
+
+When the user asks to "upload", "prep the upload", "schedule it", or anything similar:
+1. Identify the video file (ask once if unclear — check .tmp/ for final_*.mp4 files)
+2. Call **generate_metadata** to generate title, description, and tags. Infer the theme from the filename (e.g. "nebula drift") unless you know it better from context. Duration defaults to 1.
+3. Show the user a formatted preview of the generated metadata:
+   - **Title:** ...
+   - **Description:** (first paragraph only + "...")
+   - **Tags:** (comma-separated list)
+4. **STOP and wait for explicit approval** — this is the ONE exception to the "execute immediately" rule. Never upload without the user saying "looks good", "upload it", "go ahead", or similar.
+5. Once approved, confirm the schedule: ask if they want a specific publish time (UTC), publish now, or keep private. If they already told you, use that.
+6. Call **upload_video** with the video path, metadata path, and schedule/publish setting.
+7. After upload completes, send a **send_slack_message** with: video title, YouTube URL, scheduled publish time, and a link to YouTube Studio to add the thumbnail.
+   Format: "✅ *[Title]* uploaded!\nURL: [url]\nScheduled: [time or 'private']\nAdd thumbnail: [studio url]"
 
 ## Architecture
 
@@ -254,6 +271,54 @@ TOOLS = [
                 }
             },
             "required": ["video", "audio", "title"]
+        }
+    },
+    {
+        "name": "generate_metadata",
+        "description": "Generate a YouTube title, description, and tags for a Nebula Drift video using Claude. Call this first when the user asks to upload. Show the result to the user and wait for their approval before uploading.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "theme": {
+                    "type": "string",
+                    "description": "Visual theme or description of the video (e.g. 'purple nebula drift', 'cosmic deep space', 'red giant star')"
+                },
+                "duration": {
+                    "type": "integer",
+                    "description": "Video duration in hours (default: 1)"
+                },
+                "video_file": {
+                    "type": "string",
+                    "description": "Optional: path to the video file. Used to extract the video number so the metadata is saved as metadata_01.json etc."
+                }
+            },
+            "required": ["theme"]
+        }
+    },
+    {
+        "name": "upload_video",
+        "description": "Upload a video to YouTube with metadata. ONLY call this after the user has explicitly approved the generated title, description, and tags. Sends Slack notification when done.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "video": {
+                    "type": "string",
+                    "description": "Path to the video file to upload (e.g. .tmp/final_01.mp4)"
+                },
+                "metadata": {
+                    "type": "string",
+                    "description": "Path to the metadata JSON file (e.g. .tmp/metadata_01.json)"
+                },
+                "schedule": {
+                    "type": "string",
+                    "description": "Optional: schedule publish time in UTC ISO format (e.g. 2026-06-07T18:00:00). If omitted and publish_now is false, video stays private."
+                },
+                "publish_now": {
+                    "type": "boolean",
+                    "description": "If true, make the video public immediately after upload."
+                }
+            },
+            "required": ["video", "metadata"]
         }
     },
     {
@@ -370,6 +435,47 @@ def tool_assemble_video(video: str, audio: str, title: str, duration: int = 3600
         return f"Assembly failed:\n{result.stderr[-600:]}"
 
 
+def tool_generate_metadata(theme: str, duration: int = 1, video_file: str = "") -> str:
+    script = Path(__file__).parent / "execution" / "generate_metadata.py"
+    cmd = [
+        sys.executable, str(script),
+        "--theme", theme,
+        "--duration", str(duration),
+    ]
+    if video_file:
+        cmd += ["--file", video_file]
+    print(f"\n  → Running: {' '.join(cmd)}\n")
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent)
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        return f"Metadata generation failed:\n{result.stderr[-600:]}"
+
+
+def tool_upload_video(video: str, metadata: str, schedule: str = "", publish_now: bool = False) -> str:
+    script = Path(__file__).parent / "execution" / "upload_to_youtube.py"
+    cmd = [
+        sys.executable, str(script),
+        "--video", video,
+        "--metadata", metadata,
+    ]
+    if schedule:
+        cmd += ["--schedule", schedule]
+    if publish_now:
+        cmd.append("--publish-now")
+    print(f"\n  → Running: {' '.join(cmd)}\n")
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=str(Path(__file__).parent),
+        timeout=600,   # uploads can take a few minutes
+    )
+    if result.returncode == 0:
+        return result.stdout.strip()
+    else:
+        return f"Upload failed:\n{result.stderr[-600:]}"
+
+
 def tool_send_slack(message: str) -> str:
     if not SLACK_WEBHOOK:
         return "No SLACK_WEBHOOK_URL set in .env — message not sent."
@@ -408,7 +514,7 @@ def tool_write_file(path: str, content: str) -> str:
     if not str(target).startswith(str(PROJECT_ROOT)):
         return f"Refused: path is outside the project directory."
     # Safety: never overwrite .env or credentials
-    if target.name in (".env", "credentials.json", "token.json", "token_yt.json"):
+    if target.name in (".env", "credentials.json", "token.json", "token_yt.json", "token_upload.json"):
         return f"Refused: will not overwrite sensitive file {target.name}."
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -447,6 +553,10 @@ def execute_tool(name: str, inputs: dict) -> str:
         return tool_list_raw_files()
     elif name == "assemble_video":
         return tool_assemble_video(**inputs)
+    elif name == "generate_metadata":
+        return tool_generate_metadata(**inputs)
+    elif name == "upload_video":
+        return tool_upload_video(**inputs)
     elif name == "send_slack_message":
         return tool_send_slack(inputs["message"])
     elif name == "read_file":
