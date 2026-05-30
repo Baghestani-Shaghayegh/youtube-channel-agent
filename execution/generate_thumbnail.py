@@ -27,6 +27,9 @@ from google.genai import types as genai_types
 API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 OUTPUT_DIR = Path(__file__).parent.parent / ".tmp"
 
+# FREE TIER model — DO NOT change to imagen-* (requires paid plan)
+IMAGE_MODEL = "gemini-2.0-flash-exp"
+
 # Nebula Drift thumbnail style — based on competitor research
 # Dark background, single glowing nebula, minimal text, high contrast
 BASE_PROMPT = """
@@ -54,10 +57,10 @@ def generate_thumbnail(title: str, extra_style: str = "") -> Path:
         prompt += f"\nExtra style notes: {extra_style}"
 
     print(f"Generating thumbnail for: '{title}'")
-    print("Calling Imagen 3...")
+    print(f"Calling Gemini ({IMAGE_MODEL})...")
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash-exp",
+        model=IMAGE_MODEL,
         contents=prompt,
         config=genai_types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],

@@ -29,6 +29,10 @@ import io
 API_KEY = os.getenv("GOOGLE_AI_API_KEY")
 OUTPUT_DIR = Path(__file__).parent.parent / ".tmp"
 
+# FREE TIER model — DO NOT change to imagen-* (requires paid plan)
+# gemini-2.0-flash-exp supports image output via response_modalities
+IMAGE_MODEL = "gemini-2.0-flash-exp"
+
 # ---------------------------------------------------------------------------
 # Prompts
 # ---------------------------------------------------------------------------
@@ -68,12 +72,13 @@ Minimal design — the nebula IS the logo.
 # ---------------------------------------------------------------------------
 
 def generate_image(prompt: str, label: str) -> bytes:
-    """Call Gemini and return raw image bytes."""
+    """Call Gemini Flash (free tier) and return raw image bytes.
+    Always uses IMAGE_MODEL — never Imagen which requires paid plan."""
     client = genai.Client(api_key=API_KEY)
-    print(f"Calling Gemini for {label}...")
+    print(f"Calling Gemini ({IMAGE_MODEL}) for {label}...")
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash-exp",
+        model=IMAGE_MODEL,
         contents=prompt,
         config=genai_types.GenerateContentConfig(
             response_modalities=["IMAGE", "TEXT"],
@@ -84,7 +89,15 @@ def generate_image(prompt: str, label: str) -> bytes:
         if part.inline_data and part.inline_data.mime_type.startswith("image"):
             return part.inline_data.data
 
-    raise RuntimeError(f"No image returned for {label}")
+    # Print any text response for debugging
+    for part in response.candidates[0].content.parts:
+        if hasattr(part, "text") and part.text:
+            print(f"  Model text response: {part.text[:200]}")
+
+    raise RuntimeError(
+        f"No image returned for {label}. "
+        "The free tier model may not have returned an image — try again."
+    )
 
 
 def resize_and_save(image_bytes: bytes, target_size: tuple, output_path: Path) -> Path:
