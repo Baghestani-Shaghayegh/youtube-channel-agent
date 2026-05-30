@@ -38,6 +38,10 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 
 ## Upload Schedule
 - **Frequency:** 1 video per week (4/month)
+- **Publish day:** Friday
+- **publishAt time (UTC):** 20:00 UTC — 3pm EST / 12pm PST
+- **Why:** Catches US East Coast end-of-day, West Coast noon; YouTube indexes 6–8 hrs before Friday night peak
+- **Indexing buffer:** 2 hours (Nova schedules 2 hrs before target visibility time automatically)
 - **Current video duration:** 1 hour (3600s) — starting point
 - **Month 3+ duration:** push to 4–8 hours for sleep/study search traffic
 - **Assembly script default:** `--duration 3600`

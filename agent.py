@@ -198,16 +198,20 @@ When assembling a video:
 
 When the user asks to "upload", "prep the upload", "schedule it", or anything similar:
 1. Identify the video file (ask once if unclear — check .tmp/ for final_*.mp4 files)
-2. Call **generate_metadata** to generate title, description, and tags. Infer the theme from the filename (e.g. "nebula drift") unless you know it better from context. Duration defaults to 1.
+2. Call **generate_metadata** to generate title, description, and tags. Infer the theme from the filename or the video content context. Duration defaults to 1.
 3. Show the user a formatted preview of the generated metadata:
    - **Title:** ...
    - **Description:** (first paragraph only + "...")
    - **Tags:** (comma-separated list)
 4. **STOP and wait for explicit approval** — this is the ONE exception to the "execute immediately" rule. Never upload without the user saying "looks good", "upload it", "go ahead", or similar.
-5. Once approved, confirm the schedule: ask if they want a specific publish time (UTC), publish now, or keep private. If they already told you, use that.
-6. Call **upload_video** with the video path, metadata path, and schedule/publish setting.
+5. Once approved, get the schedule automatically — run this command:
+   `python3 execution/next_publish_time.py`
+   It returns the next Friday at 20:00 UTC as an ISO string (e.g. "2026-06-05T20:00:00").
+   Pass that string directly as the `schedule` parameter.
+   Do NOT ask the user for the time — it is already decided in the strategy.
+6. Call **upload_video** with the video path, metadata path, and the computed schedule.
 7. After upload completes, send a **send_slack_message** with: video title, YouTube URL, scheduled publish time, and a link to YouTube Studio to add the thumbnail.
-   Format: "✅ *[Title]* uploaded!\nURL: [url]\nScheduled: [time or 'private']\nAdd thumbnail: [studio url]"
+   Format: "✅ *[Title]* uploaded!\nURL: [url]\nScheduled: Friday [date] at 8pm UTC (3pm EST)\nAdd thumbnail: [studio url]"
 
 ## Architecture
 
