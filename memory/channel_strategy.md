@@ -47,6 +47,34 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - **Assembly script default:** `--duration 3600`
 - **Title formula:** "[Visual scene] — Deep Space Ambient for [use case]"
 
+## Visual Identity
+
+### Color Palette
+- Deep black backgrounds
+- Purple (primary) — electric violet, magenta-purple
+- Blue (secondary) — electric blue, ice blue, glowing cyan accents
+- White/light blue for stars and core glows
+
+### Style
+- Swirling vortex / spiral nebula shapes (not flat fields)
+- Glowing luminous center with cloud formations spiraling outward
+- Cinematic, high contrast, dramatic lighting
+- No text or logos in the raw images
+
+### Channel Art (set June 2026)
+- **Profile picture**: swirling purple/blue nebula vortex, glowing blue starfield core — circle crops perfectly to the center
+- **Banner**: wide deep space scene, purple nebula on left, blue nebula sweeping right, small spiral galaxy bottom right, no text overlay in the image itself
+
+### Thumbnail Formula
+- Same purple/blue palette as channel art
+- Single dominant nebula shape, dark background
+- Minimal text — title only, clean white font, bottom or center
+- No em dash in text (reads as AI-generated)
+
+### Image Generation Prompts (ChatGPT/DALL-E)
+- Profile: "glowing cosmic nebula vortex, deep blue and purple swirling clouds, starfield in the center, dark black background, cinematic space art, square format"
+- Banner: "wide cinematic deep space scene, swirling nebula clouds in purple and blue, dense starfield, dark background, no text, ultra wide panoramic format"
+
 ## Research Data Location
 - Google Sheet (master): https://docs.google.com/spreadsheets/d/1OWJ2Z0BXNby4mxcxZojVQ0sKFshmxg5jhGimCwQWXZo
 - Local CSV: .tmp/channel_research_master.csv
