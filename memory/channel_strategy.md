@@ -75,6 +75,37 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Profile: "glowing cosmic nebula vortex, deep blue and purple swirling clouds, starfield in the center, dark black background, cinematic space art, square format"
 - Banner: "wide cinematic deep space scene, swirling nebula clouds in purple and blue, dense starfield, dark background, no text, ultra wide panoramic format"
 
+## Search Term Research (June 2026)
+
+### Key finding: title for the SEARCH, not the channel name
+Searching "nebula drift" / "nebula drift ambient" shows that videos built around the
+phrase "Nebula Drift" almost all flop — even big channels. Examples:
+- Sheyda Official (117K subs) → 25 views on its "Nebula Drift" video
+- Space Relax Music Channel (63.9K subs) → 0 views on "Crimson Nebula Drift"
+- Highest view count for ANY "nebula drift ambient" video: ~547 views
+Lesson: "Nebula Drift" is a fine CHANNEL name but a dead VIDEO-TITLE / search term.
+Never put "Nebula Drift" in video titles — use it only for channel branding.
+
+### What actually wins (searched high-intent terms)
+Searched: "deep space ambient sleep", "space ambient music study",
+"1 hour space music focus", "cosmic ambient relaxation", "deep space music for sleep".
+The niche is enormous — sleep/study ambient is one of YouTube's biggest categories.
+
+**THE BLUEPRINT — Celestial Ambience (only 31.7K subs):**
+- Video "Starfield - Ambient Space Music for Sleep/Study/Relaxing 10 Hours" = 22.4M views
+- That one video = 78% of the channel's 28.8M total views (a single breakout hit, not
+  consistent — but proves a small channel CAN hit 22M in this exact niche)
+- Channel: UCstsO2Wf4sCWjauPZs35tlQ
+
+### Actionable takeaways
+1. **Go long.** Winners run 3–12 hours, not 1 hour. People loop them all night for
+   sleep = huge watch-time. Since our video is a looped clip + audio, longer costs
+   nothing extra to produce. Push to 3–10 hours sooner than "Month 3+".
+2. **Stack use cases in the title.** Winners cram Sleep/Study/Relaxing into one title
+   to catch every search intent at once — don't pick just "Sleep".
+3. **Winning title formula:** `[Cosmic noun] - Deep Space Ambient Music for Sleep, Study & Relaxation [X Hours]`
+4. Study Celestial Ambience's thumbnails as the model.
+
 ## Research Data Location
 - Google Sheet (master): https://docs.google.com/spreadsheets/d/1OWJ2Z0BXNby4mxcxZojVQ0sKFshmxg5jhGimCwQWXZo
 - Local CSV: .tmp/channel_research_master.csv
@@ -84,3 +115,4 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Relaxation Ambient Music: UCkFeoNSqYTa7trn75WM9tsg
 - Space Relax Music Channel: UCSFB7Xy5Fa1pVVKP_CajIrw
 - Cosmic Nostalgia: UCWdmm6WzJsjQ-_3a4VU8tsQ
+- Celestial Ambience: UCstsO2Wf4sCWjauPZs35tlQ  (BLUEPRINT — 31.7K subs, 22.4M-view breakout)
