@@ -335,6 +335,8 @@ def assemble_video(
         "-stream_loop", "-1",
         "-i", str(seamless_unit),
         "-t", str(target_duration),
+        # 3s fade-in so the very start eases in instead of jumping to full volume
+        "-af", "afade=t=in:st=0:d=3",
         "-c:a", "aac",
         "-b:a", "192k",
         "-vn",
