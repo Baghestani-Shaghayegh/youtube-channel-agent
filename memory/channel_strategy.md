@@ -75,6 +75,13 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Profile: "glowing cosmic nebula vortex, deep blue and purple swirling clouds, starfield in the center, dark black background, cinematic space art, square format"
 - Banner: "wide cinematic deep space scene, swirling nebula clouds in purple and blue, dense starfield, dark background, no text, ultra wide panoramic format"
 
+## Distribution Decision (June 2026)
+**Long-form YouTube only.** No Shorts, no Instagram. Rationale: this niche grows on
+long watch-time (looped sleep/study sessions) via search/suggested, not viral clips.
+Shorts subscribers rarely watch long-form and can dilute the audience signal. All
+energy goes into a consistent library of long (3hr+) videos. Revisit Shorts only as
+a measured teaser experiment after 5-8 long videos are up.
+
 ## Audio Production (Suno) — the sound we want
 
 The target sound is a **smooth, glassy, beatless ambient drone** like `audio_01.mp3`
