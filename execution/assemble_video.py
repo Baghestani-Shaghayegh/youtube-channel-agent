@@ -77,6 +77,51 @@ def get_duration(file_path: Path) -> float:
         return 0.0
 
 
+def make_seamless_audio_loop(audio_path: Path, output: Path, crossfade: float = 3.0) -> Path:
+    """Build a seamless, crossfade-looping audio unit.
+
+    A plain -stream_loop concatenation produces an audible click/level-drop at
+    every repeat because the track's end and start don't match. We fix that the
+    same way the video is fixed: crossfade the tail back into the head so the
+    unit's end flows continuously into its own start when looped.
+
+    Unit = mid + acrossfade(tail, head):
+      mid   = A[CF : DUR-CF]      (plays the steady middle)
+      tail  = A[DUR-CF : DUR]     (continues smoothly out of mid)
+      head  = A[0 : CF]           (fades in to where mid begins)
+      acrossfade(tail, head) is an equal-power blend, so when the unit loops the
+      end (~A[CF]) meets the start (A[CF]) with no jump.
+    Loop unit length = DUR - CF.
+    """
+    duration = get_duration(audio_path)
+    if duration <= 0:
+        raise RuntimeError(f"Could not read duration of {audio_path.name}.")
+
+    # keep the crossfade sane for short clips
+    cf = min(crossfade, duration / 4)
+    mid_end = duration - cf
+
+    filtergraph = (
+        f"[0:a]atrim={cf:.4f}:{mid_end:.4f},asetpts=N/SR/TB[mid];"
+        f"[0:a]atrim={mid_end:.4f}:{duration:.4f},asetpts=N/SR/TB[tail];"
+        f"[0:a]atrim=0:{cf:.4f},asetpts=N/SR/TB[head];"
+        f"[tail][head]acrossfade=d={cf:.4f}:c1=tri:c2=tri[blend];"
+        f"[mid][blend]concat=n=2:v=0:a=1[out]"
+    )
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(audio_path),
+        "-filter_complex", filtergraph,
+        "-map", "[out]",
+        "-c:a", "pcm_s16le",   # lossless intermediate so repeated looping stays clean
+        str(output),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Seamless audio loop failed:\n{result.stderr[-500:]}")
+    return output
+
+
 def format_duration(seconds: int) -> str:
     h = seconds // 3600
     m = (seconds % 3600) // 60
@@ -275,12 +320,17 @@ def assemble_video(
 
     # --- Step 2: Loop audio to target duration ---
     looped_audio = OUTPUT_DIR / f"_tmp_audio_{slug}.m4a"
-    print("Step 2/3: Looping audio (encoding to AAC)...")
+    print("Step 2/3: Looping audio (seamless crossfade loop, encoding to AAC)...")
+
+    # First build a seamless crossfade loop unit so repeats don't click/drop,
+    # then stream-loop that unit to the target duration.
+    seamless_unit = OUTPUT_DIR / f"_tmp_audioloop_{slug}.wav"
+    make_seamless_audio_loop(audio_path, seamless_unit, crossfade=3.0)
 
     cmd_audio = [
         "ffmpeg", "-y",
         "-stream_loop", "-1",
-        "-i", str(audio_path),
+        "-i", str(seamless_unit),
         "-t", str(target_duration),
         "-c:a", "aac",
         "-b:a", "192k",
@@ -288,6 +338,7 @@ def assemble_video(
         str(looped_audio)
     ]
     result = subprocess.run(cmd_audio, capture_output=True, text=True)
+    seamless_unit.unlink(missing_ok=True)
     if result.returncode != 0:
         raise RuntimeError(f"Audio loop failed:\n{result.stderr[-500:]}")
     print(f"  Done — {looped_audio.stat().st_size / 1024 / 1024:.0f} MB")
