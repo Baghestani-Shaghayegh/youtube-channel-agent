@@ -75,6 +75,39 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Profile: "glowing cosmic nebula vortex, deep blue and purple swirling clouds, starfield in the center, dark black background, cinematic space art, square format"
 - Banner: "wide cinematic deep space scene, swirling nebula clouds in purple and blue, dense starfield, dark background, no text, ultra wide panoramic format"
 
+## Audio Production (Suno) — the sound we want
+
+The target sound is a **smooth, glassy, beatless ambient drone** like `audio_01.mp3`
+(spikiness ~0.60, percussive ~1%). NOT the spiky/lofi version (Infinite Drift had
+pulse 0.184, percussive 6.9% — too much movement). Smooth = sustained/static, not
+"evolving" or "textured".
+
+### Suno recipe (makes the sound we like)
+- **Mode:** Advanced, Lyrics = Instrumental
+- **Styles box:**
+  > sustained ambient drone, pure smooth continuous pad, deep space soundscape, static unchanging tone, warm soft pads, gentle and steady, sleep music, formless, timeless, seamless loop, no drums, no beat, no melody
+- **Exclude styles:** leave EMPTY (a heavy exclude list over-sterilizes it and kills the warmth)
+- **Weirdness:** 0%   **Style Influence:** ~20%
+- Avoid the words "ethereal, slow evolving, soft noise, airy textures" — they add the grain/spikiness we don't want.
+- To get variations of the same vibe: keep the prompt, just hit Create 3-4x.
+
+### Known Suno quirk
+Suno tends to "develop" the track and sneak in a beat partway (the Jun 2026 track
+grew a beat at ~2:20). Fixes: (a) trim to the clean section before the beat, or
+(b) add "static and unchanging from start to finish, no development, no build, no
+progression" to the prompt.
+
+## Audio Post-Processing (automated in execution/assemble_video.py)
+
+ALWAYS polish audio before/at assembly — these are now built into the assembly script:
+1. **Trim out any beat** — find the beat-free window (use the segment analyzer); also
+   pick the most self-similar loop window (best spectral match start↔end) for a clean loop.
+2. **Seamless crossfade loop** — `make_seamless_audio_loop()` with a **15s** crossfade
+   (sweet spot for ambient: seam change ~0.36x the music's natural movement = inaudible).
+3. **3s fade-in at the start** so the audio eases in instead of jumping to full volume.
+Tools: `execution/analyze_video.py` (video), and the audio analysis scripts for
+beat-location / loop-window / seam measurement.
+
 ## Search Term Research (June 2026)
 
 ### Key finding: title for the SEARCH, not the channel name
