@@ -43,3 +43,27 @@ Track of all assembled videos for Nebula Drift.
 - **Uploaded**: yes — scheduled Friday 2026-06-19 20:00 UTC
 - **Video ID**: WzraDNKYQaA
 - **URL**: https://www.youtube.com/watch?v=WzraDNKYQaA
+
+## 2026-06-24
+- **Title**: Hyperspace Star Field | Deep Space Ambient for Deep Focus & Study
+- **Video clip**: video_02.mp4
+- **Audio track**: audio_02.mp3
+- **Duration**: 1h 00m 00s
+- **Output**: /Users/sarah/Documents/Content Scraper/.tmp/final_02.mp4
+- **Uploaded**: no
+
+## 2026-06-24
+- **Title**: Hyperspace Star Field | Deep Space Ambient for Deep Focus & Study
+- **Video clip**: video_02.mp4
+- **Audio track**: audio_02.mp3
+- **Duration**: 1h 00m 00s
+- **Output**: /Users/sarah/Documents/Content Scraper/.tmp/final_02.mp4
+- **Uploaded**: no
+
+## 2026-06-24
+- **Title**: Hyperspace Star Field | Deep Space Ambient for Deep Focus & Study
+- **Video clip**: video_02.mp4
+- **Audio track**: audio_02.mp3
+- **Duration**: 1h 00m 00s
+- **Output**: /Users/sarah/Documents/Content Scraper/.tmp/final_02.mp4
+- **Uploaded**: no
