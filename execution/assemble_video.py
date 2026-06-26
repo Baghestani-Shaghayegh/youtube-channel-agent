@@ -243,6 +243,7 @@ def assemble_video(
     title: str,
     output_path: Path = None,
     fade_duration: float = 2.0,
+    audio_crossfade: float = 15.0,
 ) -> Path:
     """
     Full pipeline:
@@ -328,7 +329,7 @@ def assemble_video(
     # tonal morph at the loop point is gentler than the track's own natural
     # movement, so the seam is imperceptible (measured ~0.36x the mid-clip flux).
     seamless_unit = OUTPUT_DIR / f"_tmp_audioloop_{slug}.wav"
-    make_seamless_audio_loop(audio_path, seamless_unit, crossfade=15.0)
+    make_seamless_audio_loop(audio_path, seamless_unit, crossfade=audio_crossfade)
 
     cmd_audio = [
         "ffmpeg", "-y",
@@ -422,7 +423,9 @@ def main():
     parser.add_argument("--output", default=None,
                         help="Custom output path (optional)")
     parser.add_argument("--fade", type=float, default=2.0,
-                        help="Crossfade duration in seconds for seamless loop (default: 2.0)")
+                        help="Video crossfade duration in seconds for seamless loop (default: 2.0)")
+    parser.add_argument("--audio-crossfade", type=float, default=15.0,
+                        help="Audio loop crossfade in seconds; tune per track (default: 15.0)")
     args = parser.parse_args()
 
     if not check_ffmpeg():
@@ -447,6 +450,7 @@ def main():
         title=title,
         output_path=output_path,
         fade_duration=args.fade,
+        audio_crossfade=args.audio_crossfade,
     )
 
     log_to_history(video_path, audio_path, title, args.duration, output)
