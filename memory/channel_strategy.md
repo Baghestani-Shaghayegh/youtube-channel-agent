@@ -75,6 +75,24 @@ VIATMOS: 57K subs in 10 months, 45 videos, 4.3/mo = ~1 video/week. Top video 423
 - Profile: "glowing cosmic nebula vortex, deep blue and purple swirling clouds, starfield in the center, dark black background, cinematic space art, square format"
 - Banner: "wide cinematic deep space scene, swirling nebula clouds in purple and blue, dense starfield, dark background, no text, ultra wide panoramic format"
 
+### Video Generation Prompts (Runway / Seedance 2.0)
+**Setup that works:** single start image OR text-to-video (NOT same start+end keyframe —
+that causes a "breathing" zoom). The assembly script handles the seamless loop via
+crossfade, so don't try to make Runway loop it. 16:9, 1080p, audio OFF. Generate 2-3
+times and pick the best (each run is random). Run output through
+`execution/analyze_video.py --motion` to check it before assembly.
+
+**Calm starfield drift (no clouds, no center band) — the look we landed on (Jun 2026):**
+> Gentle continuous forward drift through deep space at a calm relaxed cruising pace, the camera glides smoothly forward through an open star field, countless distant stars slowly passing by, clear dark empty space with a faint even blue and purple tint spread softly across the whole frame, stars evenly scattered everywhere, no horizontal line, no horizon, no glowing band or light streak across the middle, no nebula clouds, no gas clouds, no fog, stars hold steady and sharp, peaceful and meditative, dark black background, smooth steady motion, not rushed, no warp speed, no streaking stars, no zooming, no pulsing, no rotation, no people
+
+**Prompt-tuning lessons learned:**
+- "volumetric nebula clouds / cosmic gas" → adds clouds (remove if you want a clean starfield)
+- "glow far in the distance" → renders as an unwanted horizontal band/horizon line; use
+  "faint even tint spread across the whole frame" + "no horizontal line, no glowing band" instead
+- "imperceptible / glacial / barely creeps" → TOO slow; use "calm relaxed cruising pace, smooth steady, not rushed"
+- Always include "no warp speed, no streaking stars" — Seedance defaults to a warp/hyperspace zoom otherwise
+- Energetic warp-speed clips → title for Focus/Study; calm drift clips → title for Sleep/Relaxation
+
 ## Distribution Decision (June 2026)
 **Long-form YouTube only.** No Shorts, no Instagram. Rationale: this niche grows on
 long watch-time (looped sleep/study sessions) via search/suggested, not viral clips.
