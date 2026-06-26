@@ -93,6 +93,34 @@ times and pick the best (each run is random). Run output through
 - Always include "no warp speed, no streaking stars" — Seedance defaults to a warp/hyperspace zoom otherwise
 - Energetic warp-speed clips → title for Focus/Study; calm drift clips → title for Sleep/Relaxation
 
+## Competitor Case Studies (June 2026)
+
+### NebulaDriftHQ (@NebulaDriftHQ) — FAILED, what NOT to do
+1,340 subs, 6,341 total views, 55 videos in 3.6 months, then died (last upload Dec 2025).
+Mistakes: (1) **over-posted ~14 videos/month** (often 2/day) → burnout; (2) **death spiral** —
+when early videos got ~100 views they panic-posted MORE low-effort videos, and views
+collapsed to 1-5 each; (3) **stop-start** (daily 2 weeks, then 2.5 months silent, then quit);
+(4) all 1-hour, no long-form; (5) emoji-stuffed titles, format changed midway, no consistent
+brand; (6) **quit at month 3.6** when patience was the only thing left.
+
+### ViewEscape (@ViewEscape) — WINNING, the blueprint (long-term)
+217K subs, 47M total views, 145 videos over ~23 months. Median ~179K views/video, some hit
+1-2M. Formula: (1) **10-HOUR videos, every one** = the watch-time engine; (2) **slow pace,
+~2.2 uploads/month** (quality > quantity, opposite of the failed channel); (3) **scene-based
+concept** — each video is a *place to escape to* ("Cozy Balcony over the Radiant City",
+"Private Interstellar Suite in Deep Space"), not abstract loops; (4) **layered ambience**
+(rain, thunder, water, hum), not just music; (5) **consistent for ~2 years, never quit**.
+
+### Our decision (June 2026) given this data
+- **Keep current concept** (abstract nebula/starfield ambient) for now. A scene-based "escape
+  destination" channel like ViewEscape is a possible SEPARATE future channel, not a pivot.
+- **Do NOT jump to 10-hour videos yet.** Our avg view duration is ~11 min; a 10hr video would
+  show ~1.8% completion and the algorithm would read that as instant bailing. Long videos only
+  pay off once we have an audience that leaves them on overnight. Grow video length GRADUALLY
+  (1hr → 2hr → 3hr) as average watch-time rises, not all at once.
+- **Core lessons we DO adopt from both:** never panic-post, keep titles clean/consistent (no
+  emoji spam), stay consistent, and don't quit early.
+
 ## Distribution Decision (June 2026)
 **Long-form YouTube only.** No Shorts, no Instagram. Rationale: this niche grows on
 long watch-time (looped sleep/study sessions) via search/suggested, not viral clips.
