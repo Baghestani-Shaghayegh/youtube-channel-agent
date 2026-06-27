@@ -111,6 +111,19 @@ concept** — each video is a *place to escape to* ("Cozy Balcony over the Radia
 "Private Interstellar Suite in Deep Space"), not abstract loops; (4) **layered ambience**
 (rain, thunder, water, hum), not just music; (5) **consistent for ~2 years, never quit**.
 
+### Neural Beats Lab (@NeuralBeatsSpace) — new channel, Shorts-trap cautionary tale
+Created Apr 2026; 7 subs, 3,325 views, 83 videos in ~2 months. Posts a 1-hour video AND a
+Short for every cosmic object, daily (~40/month — extreme over-posting).
+- **Proves the no-Shorts decision:** their Shorts get 167-606 views but the channel has only
+  7 SUBS and the 1-hour videos (the real product) die at 1-9 views. Shorts traffic doesn't
+  convert and doesn't watch long-form. Vanity views, no real audience.
+- Same over-posting burnout pattern as NebulaDriftHQ.
+- **ONE idea worth borrowing:** their title hook = real astronomical object + 432Hz, e.g.
+  "M82 | 432Hz Deep Space Ambient - Cigar Galaxy", "NGC-7023 - Iris Nebula". Real galaxy/
+  nebula names are specific and searchable; 432Hz is a searched sleep/meditation term; gives an
+  endless themed series with built-in variety. Could adopt for some of our titles without
+  changing the core format.
+
 ### Our decision (June 2026) given this data
 - **Keep current concept** (abstract nebula/starfield ambient) for now. A scene-based "escape
   destination" channel like ViewEscape is a possible SEPARATE future channel, not a pivot.
