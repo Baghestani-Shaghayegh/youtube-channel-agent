@@ -152,6 +152,43 @@ def get_video_dimensions(file_path: Path) -> tuple:
         return (1920, 1080)
 
 
+def preprocess_clip_boomerang(raw_clip: Path, output: Path) -> Path:
+    """
+    Watermark removal + BOOMERANG (forward then reverse) for a guaranteed-seamless loop.
+
+    Use this when the clip's motion accumulates (zoom-in, rotation, forward dolly) so its
+    end frame doesn't match its start — a crossfade can't hide that "pop". Playing the clip
+    forward then in reverse means the end of the reverse IS the start of the forward, so the
+    loop is mathematically seamless with no blend. The motion gently "breathes" in and out,
+    which looks natural on slow ambient space footage.
+    """
+    vid_w, vid_h = get_video_dimensions(raw_clip)
+    crop_h = vid_h - 70  # crop bottom strip to remove watermark
+    print(f"  Boomerang mode (forward+reverse) for a seamless loop")
+    print(f"  Watermark: cropping bottom 70px then scaling back to {vid_w}x{vid_h}")
+
+    filter_complex = (
+        f"[0:v]crop={vid_w}:{crop_h}:0:0,scale={vid_w}:{vid_h}[clean];"
+        f"[clean]split[fwd][rev];"
+        f"[rev]reverse[rrev];"
+        f"[fwd][rrev]concat=n=2:v=1:a=0[out]"
+    )
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", str(raw_clip),
+        "-filter_complex", filter_complex,
+        "-map", "[out]",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-pix_fmt", "yuv420p", "-an",
+        str(output),
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Boomerang preprocessing failed:\n{result.stderr[-700:]}")
+    print(f"  Boomerang clip: {get_duration(output):.1f}s  →  {output.name}")
+    return output
+
+
 def preprocess_clip(raw_clip: Path, output: Path, fade_duration: float = 2.0) -> Path:
     """
     Fix the raw clip before looping:
@@ -244,6 +281,7 @@ def assemble_video(
     output_path: Path = None,
     fade_duration: float = 2.0,
     audio_crossfade: float = 15.0,
+    loop_mode: str = "crossfade",
 ) -> Path:
     """
     Full pipeline:
@@ -284,7 +322,10 @@ def assemble_video(
     # --- Step 0: Preprocess — watermark removal + seamless loop ---
     clean_clip = OUTPUT_DIR / f"_tmp_clean_{slug}.mp4"
     print("Step 0/3: Preprocessing clip (watermark removal + seamless loop)...")
-    preprocess_clip(video_path, clean_clip, fade_duration=fade_duration)
+    if loop_mode == "boomerang":
+        preprocess_clip_boomerang(video_path, clean_clip)
+    else:
+        preprocess_clip(video_path, clean_clip, fade_duration=fade_duration)
 
     # --- Step 1: Loop the clean clip to target duration ---
     # Use concat demuxer: write a playlist of N repeats then trim to exact duration.
@@ -426,6 +467,9 @@ def main():
                         help="Video crossfade duration in seconds for seamless loop (default: 2.0)")
     parser.add_argument("--audio-crossfade", type=float, default=15.0,
                         help="Audio loop crossfade in seconds; tune per track (default: 15.0)")
+    parser.add_argument("--loop-mode", choices=["crossfade", "boomerang"], default="crossfade",
+                        help="Video loop method. 'boomerang' (forward+reverse) for clips whose "
+                             "motion accumulates (zoom/rotation) so the end doesn't match the start.")
     args = parser.parse_args()
 
     if not check_ffmpeg():
@@ -451,6 +495,7 @@ def main():
         output_path=output_path,
         fade_duration=args.fade,
         audio_crossfade=args.audio_crossfade,
+        loop_mode=args.loop_mode,
     )
 
     log_to_history(video_path, audio_path, title, args.duration, output)
