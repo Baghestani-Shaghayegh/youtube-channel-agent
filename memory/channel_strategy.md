@@ -85,6 +85,16 @@ times and pick the best (each run is random). Run output through
 **Calm starfield drift (no clouds, no center band) — the look we landed on (Jun 2026):**
 > Gentle continuous forward drift through deep space at a calm relaxed cruising pace, the camera glides smoothly forward through an open star field, countless distant stars slowly passing by, clear dark empty space with a faint even blue and purple tint spread softly across the whole frame, stars evenly scattered everywhere, no horizontal line, no horizon, no glowing band or light streak across the middle, no nebula clouds, no gas clouds, no fog, stars hold steady and sharp, peaceful and meditative, dark black background, smooth steady motion, not rushed, no warp speed, no streaking stars, no zooming, no pulsing, no rotation, no people
 
+**Kling AI (kling.ai) — use POSITIVE phrasing, it rejects negative-heavy prompts:**
+Kling's content filter throws "content you uploaded violates community guidelines" on prompts
+with a long stack of negatives (especially "no people"). Use this positive-phrased version
+instead (same clean starfield look, no filter trip):
+> Gentle continuous forward drift through deep space at a calm relaxed cruising pace, the camera glides smoothly forward through a clean open star field, countless distant stars as sharp points of light evenly scattered across the whole frame, clear dark empty space with a faint soft blue and purple tint, peaceful and meditative, dark black background, smooth slow steady motion
+
+(positives replace negatives: "clean open star field / evenly scattered" = no clouds/band;
+"sharp points of light / smooth slow motion" = no warp/streaking; drop "no people" entirely.)
+Settings on Kling: Video 3.0, text-to-video (no start/end frame), 720p, 16:9.
+
 **Prompt-tuning lessons learned:**
 - "volumetric nebula clouds / cosmic gas" → adds clouds (remove if you want a clean starfield)
 - "glow far in the distance" → renders as an unwanted horizontal band/horizon line; use
