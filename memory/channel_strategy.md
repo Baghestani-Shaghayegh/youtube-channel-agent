@@ -95,13 +95,41 @@ instead (same clean starfield look, no filter trip):
 "sharp points of light / smooth slow motion" = no warp/streaking; drop "no people" entirely.)
 Settings on Kling: Video 3.0, text-to-video (no start/end frame), 720p, 16:9.
 
-**Prompt-tuning lessons learned:**
+### THE #1 LOOP RULE — generate LOW-MOTION clips
+A clip can only loop cleanly if its end frame ≈ its start frame. Clips with continuous
+zoom/rotation/forward-dolly NEVER loop forward-only — every crossfade length just trades a
+ghosty dissolve (long fade) for a hard pop (short fade). We burned a whole session on the
+video_04 galaxy because it zoomed+rotated non-stop. Don't repeat that — generate near-static
+clips from the start.
+
+**Loop-friendly (near-static) prompt — use this as the default:**
+> Almost completely still spiral galaxy in deep space, the galaxy stays fixed and centered in the frame, extremely subtle barely-perceptible drift, gentle slow shimmer of distant stars, no camera movement, no zoom, no rotation, no scaling, no pushing forward, glowing purple and blue galactic arms, thousands of tiny sharp stars, deep black background, calm static and serene, cinematic photorealistic
+
+(swap "spiral galaxy" for "star field" / "nebula" as needed; keep the "no camera movement,
+no zoom, no rotation" core.)
+
+**Keyframe trick for loops:** if the tool supports start+end frames, use the SAME image for
+BOTH. That forces the clip to return to its start = guaranteed loop. The "breathing zoom" we
+hit before only happened because the MOTION was big; with a near-static prompt the motion is
+tiny, so same-start-end gives a clean loop with no breathing. (Only works if you have a still
+image; pure text-to-video can't set frames.)
+
+**Assembly loop tools (execution/assemble_video.py):**
+- `--loop-mode boomerang` = forward+reverse, mathematically seamless (no crossfade artifact)
+  but the clip plays backward in the 2nd half. Good fallback for high-motion clips IF the
+  reverse looks acceptable (subtle on slow footage).
+- `--fade <sec>` tunes the video crossfade; `--audio-crossfade <sec>` tunes the audio loop
+  (sweep per track — was 22s for audio_03, 20s for audio_04).
+
+**Other prompt-tuning lessons:**
+- Do NOT put "4K quality" in prompts (user preference).
 - "volumetric nebula clouds / cosmic gas" → adds clouds (remove if you want a clean starfield)
 - "glow far in the distance" → renders as an unwanted horizontal band/horizon line; use
-  "faint even tint spread across the whole frame" + "no horizontal line, no glowing band" instead
-- "imperceptible / glacial / barely creeps" → TOO slow; use "calm relaxed cruising pace, smooth steady, not rushed"
-- Always include "no warp speed, no streaking stars" — Seedance defaults to a warp/hyperspace zoom otherwise
+  "faint even tint spread across the whole frame" instead
+- "imperceptible / glacial / barely creeps" → TOO slow for a *drift*; but PERFECT for a loop clip
+- Always include "no warp speed, no streaking stars" — Seedance/Kling default to a warp zoom otherwise
 - Energetic warp-speed clips → title for Focus/Study; calm drift clips → title for Sleep/Relaxation
+- Hailuo/MiniMax watermark = bottom-right ("MINIMAX | Hailuo AI"); assembly's bottom-70px crop removes it
 
 ## Competitor Case Studies (June 2026)
 
