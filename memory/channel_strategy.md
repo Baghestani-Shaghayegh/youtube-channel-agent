@@ -1,5 +1,9 @@
 # Channel Strategy — Space Lofi / Cosmic Ambient
 
+> **See also: [monetization_playbook.md](monetization_playbook.md)** (July 2026) — the
+> data-driven path to 1K subs + 4K watch hours: 2025+ winner-cohort research, concept-first
+> title formula, duration roadmap, KPIs, and revenue expectations.
+
 ## The Channel Concept
 Long-form looped videos (1–4 hours) showing cosmic nebula and space visuals with space-themed ambient/lofi music on top. Think: beautiful space visuals + mood music, looped.
 
@@ -116,8 +120,12 @@ image; pure text-to-video can't set frames.)
 
 **Assembly loop tools (execution/assemble_video.py):**
 - `--loop-mode boomerang` = forward+reverse, mathematically seamless (no crossfade artifact)
-  but the clip plays backward in the 2nd half. Good fallback for high-motion clips IF the
-  reverse looks acceptable (subtle on slow footage).
+  but the clip plays backward in the 2nd half. VERDICT (2026-07-02): user watched the
+  boomerang final_04 and rejected it — the forward/backward motion IS noticeable, even on
+  slow galaxy footage. Do NOT use boomerang; always loop forward-only with crossfade mode.
+  (Checked video_04 crossfade at 1.5s fade: blend zone shows no visible ghosting, just a
+  brief softness — acceptable. The "ghosty dissolve vs hard pop" warning above was
+  overstated for this clip.)
 - `--fade <sec>` tunes the video crossfade; `--audio-crossfade <sec>` tunes the audio loop
   (sweep per track — was 22s for audio_03, 20s for audio_04).
 
