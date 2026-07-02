@@ -48,16 +48,27 @@ Failures for contrast: NebulaDriftHQ (14 vids/mo → died at 3.6mo), Neural Beat
 
 ## OUR PLAYBOOK (what we change / keep)
 
-### 1. New title formula (biggest change)
+### 1. New title formula (biggest change) — LIVE since 2026-07-02
 OLD: `Spiral Galaxy Drift | Deep Space Ambient for Sleep, Study & Relaxation` (keyword soup)
-NEW: `[Evocative concept] | [1 short descriptor] + [1-2 use cases]`
-Examples for our style:
-- `The Last Starlight | Deep Space Ambient for Sleep`
-- `ORION'S GATE | Cosmic Ambient Journey for Deep Focus`
-- `Adrift | Slow Space Ambient Beneath a Billion Stars`
-- Named-object series (borrowed from Neural Beats' one good idea + AMBIENT CIV):
-  `ANDROMEDA | Deep Space Ambient Odyssey`
+NEW: `[Evocative concept] | [1 short descriptor] for [1-2 use cases]`
+Examples in production:
+- `The Silent Spiral | Deep Space Ambient for Sleep & Study` (video #4, Fri Jul 3)
+- `Adrift Beneath a Billion Stars | Calm Space Ambient for Sleep & Focus` (#5, Tue Jul 8)
+- Future: `The Last Starlight`, `ORION'S GATE`, `ANDROMEDA` (named-object series)
 Keep: no em dash (use |), no "Nebula Drift" in titles, stacked use cases only when they fit.
+
+### 1b. Human description format (anti-AI-slop) — LIVE since 2026-07-02
+Three short blocks, ~5 lines total:
+1. One concrete sentence about what's literally in the video (plain words, shows in search)
+2. "One hour of continuous ambient drone. No drums, no melody, no interruptions." + uses,
+   with ONE small human touch (e.g. "or staring at the ceiling at 2am")
+3. "New space ambient every Tuesday and Friday." + @nebuladriftambient, then 3 hashtags
+BANNED words (AI tells): journey, immersive, serene, tranquility, soundscape, "Let the...",
+"guide you", "drift into", "whether you're", "perfect for", "dose of", exclamation marks,
+em dash, four parallel paragraphs.
+**Both formats are baked into `execution/generate_metadata.py`** (system prompt rewritten,
+model upgraded to claude-opus-4-8). `execution/update_video_metadata.py` edits metadata on
+already-uploaded videos (uses token_manage.json, youtube.force-ssl scope).
 
 ### 2. Duration roadmap (tied to retention, not hope)
 - Now: keep 1h (VIATMOS wins at 1.1h — we are NOT under-lengthed today)
